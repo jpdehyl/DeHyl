@@ -1,31 +1,58 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { BidsTable, BidsFilters, BidsSummary } from "@/components/bids";
 import { Button } from "@/components/ui/button";
-import { mockBids } from "@/lib/mock-bids";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import type { Bid } from "@/types";
 
 export default function BidsPage() {
   const { sidebarOpen } = useAppStore();
+  const [bids, setBids] = useState<Bid[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [client, setClient] = useState("all");
 
+  // Fetch bids from API
+  useEffect(() => {
+    async function fetchBids() {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/bids");
+        if (!response.ok) {
+          throw new Error("Failed to fetch bids");
+        }
+        const data = await response.json();
+        setBids(data.bids || []);
+      } catch (err) {
+        console.error("Error fetching bids:", err);
+        setError(err instanceof Error ? err.message : "Failed to load bids");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchBids();
+  }, []);
+
   // Get unique clients
   const clients = useMemo(() => {
     const uniqueClients = new Set(
-      mockBids.filter((b) => b.clientCode).map((b) => b.clientCode!)
+      bids.filter((b) => b.clientCode).map((b) => b.clientCode!)
     );
     return Array.from(uniqueClients).sort();
-  }, []);
+  }, [bids]);
 
   // Filter bids
   const filteredBids = useMemo(() => {
-    return mockBids.filter((bid) => {
+    return bids.filter((bid) => {
       // Search filter
       if (search) {
         const searchLower = search.toLowerCase();
@@ -49,7 +76,46 @@ export default function BidsPage() {
 
       return true;
     });
-  }, [search, status, client]);
+  }, [bids, search, status, client]);
+
+  if (loading) {
+    return (
+      <div className={cn("transition-all duration-300")}>
+        <Header
+          title="Bids"
+          description="Track bid submissions and conversion rates"
+        />
+        <div className="p-4 md:p-6 space-y-6">
+          <div className="grid gap-4 md:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-24 rounded-lg" />
+            ))}
+          </div>
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={cn("transition-all duration-300")}>
+        <Header
+          title="Bids"
+          description="Track bid submissions and conversion rates"
+        />
+        <div className="p-4 md:p-6">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
+            <p className="text-red-800 dark:text-red-200">{error}</p>
+            <p className="mt-2 text-sm text-red-600 dark:text-red-300">
+              Make sure Google Drive is connected in Settings, then sync your bids.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

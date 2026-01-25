@@ -76,6 +76,21 @@ export function parseProjectFolder(folderName: string) {
   };
 }
 
+// Parse bid folder name: "250603 - CD - Vancouver Tower Demo"
+// Format: YYMMXX - Client - Project Name
+// YY = year, MM = month, XX = sequential number
+const BID_FOLDER_PATTERN = /^(\d{6})\s*-\s*(\w+)\s*-\s*(.+)$/;
+
+export function parseBidFolder(folderName: string) {
+  const match = folderName.match(BID_FOLDER_PATTERN);
+  if (!match) return null;
+  return {
+    code: match[1],
+    clientCode: match[2],
+    name: match[3].trim(),
+  };
+}
+
 export function getRelativeTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const now = new Date();

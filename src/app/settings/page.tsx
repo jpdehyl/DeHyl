@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { FileSpreadsheet, FolderSync } from "lucide-react";
+import { FileSpreadsheet, FolderSync, Gavel } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { ConnectionCard, ClientMappings } from "@/components/settings";
 import { mockClientMappings } from "@/lib/mock-data";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ConnectionStatus {
   quickbooks: {
@@ -25,6 +27,8 @@ export default function SettingsPage() {
   const { sidebarOpen, connections, setConnections } = useAppStore();
   const [isSyncingQB, setIsSyncingQB] = useState(false);
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
+  const [isSyncingBids, setIsSyncingBids] = useState(false);
+  const [bidsLastSyncedAt, setBidsLastSyncedAt] = useState<Date | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   // Fetch connection status from API
@@ -55,9 +59,25 @@ export default function SettingsPage() {
     }
   }, [setConnections]);
 
+  // Fetch bids last sync time
+  const fetchBidsLastSync = useCallback(async () => {
+    try {
+      const res = await fetch("/api/bids");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.lastSyncedAt) {
+          setBidsLastSyncedAt(new Date(data.lastSyncedAt));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch bids sync status:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchConnections();
-  }, [fetchConnections]);
+    fetchBidsLastSync();
+  }, [fetchConnections, fetchBidsLastSync]);
 
   const handleConnectQuickBooks = () => {
     window.location.href = "/api/auth/quickbooks";
@@ -127,6 +147,24 @@ export default function SettingsPage() {
     setIsSyncingDrive(false);
   };
 
+  const handleSyncBids = async () => {
+    setIsSyncingBids(true);
+    setSyncMessage(null);
+    try {
+      const res = await fetch("/api/sync/bids", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setSyncMessage(`Synced ${data.bids_synced} bids`);
+        await fetchBidsLastSync();
+      } else {
+        setSyncMessage(data.error || "Bids sync failed");
+      }
+    } catch (error) {
+      setSyncMessage("Bids sync failed - network error");
+    }
+    setIsSyncingBids(false);
+  };
+
   return (
     <div
       className={cn(
@@ -184,6 +222,51 @@ export default function SettingsPage() {
               onSync={handleSyncGoogleDrive}
               isSyncing={isSyncingDrive}
             />
+          </div>
+        </div>
+
+        {/* Sync Actions */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Sync Actions</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-primary/10 p-2">
+                    <Gavel className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Sync Bids</CardTitle>
+                    <CardDescription>
+                      Sync bids from Google Drive Bids folder
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {bidsLastSyncedAt ? (
+                      <>Last synced: {bidsLastSyncedAt.toLocaleString()}</>
+                    ) : (
+                      <>Never synced</>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleSyncBids}
+                    disabled={isSyncingBids || !connections.googleDrive.connected}
+                  >
+                    {isSyncingBids ? "Syncing..." : "Sync Bids"}
+                  </Button>
+                </div>
+                {!connections.googleDrive.connected && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Connect Google Drive first to sync bids
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
 

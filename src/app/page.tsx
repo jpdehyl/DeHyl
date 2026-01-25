@@ -12,16 +12,16 @@ import {
   BidConversionChart,
   generateRevenueTrendData,
 } from "@/components/dashboard";
-import { mockBids } from "@/lib/mock-bids";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import type { DashboardData, ProjectWithTotals } from "@/types";
+import type { DashboardData, ProjectWithTotals, Bid } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const { sidebarOpen } = useAppStore();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [projects, setProjects] = useState<ProjectWithTotals[]>([]);
+  const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,9 +33,10 @@ export default function DashboardPage() {
       try {
         setLoading(true);
 
-        const [dashboardRes, projectsRes] = await Promise.all([
+        const [dashboardRes, projectsRes, bidsRes] = await Promise.all([
           fetch("/api/dashboard"),
           fetch("/api/projects"),
+          fetch("/api/bids"),
         ]);
 
         if (!dashboardRes.ok) {
@@ -47,9 +48,11 @@ export default function DashboardPage() {
 
         const dashboard = await dashboardRes.json();
         const projectsData = await projectsRes.json();
+        const bidsData = bidsRes.ok ? await bidsRes.json() : { bids: [] };
 
         setDashboardData(dashboard);
         setProjects(projectsData.projects || []);
+        setBids(bidsData.bids || []);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
         setError(err instanceof Error ? err.message : "Failed to load data");
@@ -137,7 +140,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Bid Conversion Chart */}
-        <BidConversionChart bids={mockBids} />
+        <BidConversionChart bids={bids} />
 
         {/* Main content grid */}
         <div className="grid gap-6 lg:grid-cols-3">
