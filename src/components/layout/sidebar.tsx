@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  TrendingUp,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -49,6 +50,11 @@ const navItems = [
     title: "Payables",
     href: "/payables",
     icon: CreditCard,
+  },
+  {
+    title: "Profitability",
+    href: "/profitability",
+    icon: TrendingUp,
   },
   {
     title: "Settings",

@@ -295,6 +295,49 @@ export interface AddActivityRequest {
 }
 
 // -------------------------------------------
+// Profitability
+// -------------------------------------------
+export interface ProjectProfitability {
+  id: string;
+  code: string;
+  description: string;
+  clientCode: string;
+  clientName: string;
+  status: string;
+  estimateAmount: number | null;
+  totalInvoiced: number;
+  totalCollected: number;
+  outstandingReceivables: number;
+  totalCosts: number;
+  grossProfit: number;
+  profitMarginPct: number;
+}
+
+export interface ClientProfitability {
+  clientCode: string;
+  clientName: string;
+  projectCount: number;
+  totalRevenue: number;
+  totalProfit: number;
+  avgMargin: number;
+}
+
+export interface ProfitabilitySummary {
+  totalRevenue: number;
+  totalCosts: number;
+  totalProfit: number;
+  avgProfitMargin: number;
+  mostProfitableProject: string;
+  leastProfitableProject: string;
+}
+
+export interface ProfitabilityResponse {
+  projects: ProjectProfitability[];
+  summary: ProfitabilitySummary;
+  byClient: ClientProfitability[];
+}
+
+// -------------------------------------------
 // OAuth / Connections
 // -------------------------------------------
 export interface ConnectionStatus {

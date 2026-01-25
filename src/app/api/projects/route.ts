@@ -76,6 +76,7 @@ export async function GET() {
       status: proj.status as "active" | "closed",
       estimateAmount: proj.estimate_amount ? Number(proj.estimate_amount) : null,
       estimateDriveId: proj.estimate_drive_id,
+      hasEstimate: !!proj.estimate_amount || !!proj.estimate_drive_id,
       hasPBS: proj.has_pbs || false,
       createdAt: new Date(proj.created_at),
       updatedAt: new Date(proj.updated_at),
