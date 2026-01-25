@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowUpDown,
   ChevronRight,
@@ -40,6 +40,7 @@ type SortKey =
 type SortDirection = "asc" | "desc";
 
 export function ProjectsTable({ projects }: ProjectsTableProps) {
+  const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>("code");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -148,7 +149,11 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
                 : 0;
 
               return (
-                <TableRow key={project.id} className="group">
+                <TableRow
+                  key={project.id}
+                  className="group cursor-pointer hover:bg-muted/50"
+                  onClick={() => router.push(`/projects/${project.id}`)}
+                >
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-medium">{project.code}</span>
@@ -213,12 +218,7 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Link href={`/projects/${project.id}`}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <ChevronRight className="h-4 w-4" />
-                        <span className="sr-only">View project</span>
-                      </Button>
-                    </Link>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                   </TableCell>
                 </TableRow>
               );
