@@ -9,6 +9,7 @@ import {
   CreditCard,
   Settings,
   X,
+  FileText,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -26,6 +27,11 @@ const navItems = [
     title: "Projects",
     href: "/projects",
     icon: FolderKanban,
+  },
+  {
+    title: "Bids",
+    href: "/bids",
+    icon: FileText,
   },
   {
     title: "Receivables",
