@@ -6,6 +6,8 @@
 // -------------------------------------------
 // Project (from Google Drive)
 // -------------------------------------------
+export type ProjectType = 'interior_demo' | 'full_demo' | 'abatement' | 'retail_fitout' | 'hazmat' | 'restoration';
+
 export interface Project {
   id: string;
   driveId: string;
@@ -18,6 +20,13 @@ export interface Project {
   estimateDriveId: string | null;
   hasEstimate: boolean;
   hasPBS: boolean;
+  // Quote generator fields
+  projectType: ProjectType | null;
+  squareFootage: number | null;
+  finalCost: number | null;
+  finalRevenue: number | null;
+  profitMargin: number | null;
+  location: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -86,6 +95,17 @@ export interface ClientMapping {
 // -------------------------------------------
 // Bid
 // -------------------------------------------
+export interface QuoteMetadata {
+  generatedAt?: string;
+  confidence?: 'high' | 'medium' | 'low';
+  basedOnProjects?: string[];
+  estimatedRange?: {
+    low: number;
+    high: number;
+    average: number;
+  };
+}
+
 export interface Bid {
   id: string;
   name: string;
@@ -100,6 +120,11 @@ export interface Bid {
   driveFolderId: string | null;
   convertedProjectId: string | null;
   notes: string | null;
+  // Quote generator fields
+  projectType: ProjectType | null;
+  squareFootage: number | null;
+  location: string | null;
+  quoteMetadata: QuoteMetadata | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -351,4 +376,55 @@ export interface ConnectionStatus {
     email?: string;
     lastSyncedAt?: Date;
   };
+}
+
+// -------------------------------------------
+// Quote Generator
+// -------------------------------------------
+export interface QuoteRequest {
+  clientCode?: string;
+  projectType: ProjectType;
+  description: string;
+  squareFootage?: number;
+  location?: string;
+}
+
+export interface SimilarProject {
+  id: string;
+  code: string;
+  description: string;
+  clientCode: string;
+  finalRevenue: number;
+  squareFootage: number | null;
+  pricePerSqFt: number | null;
+  projectType: ProjectType | null;
+  similarity: number;
+}
+
+export interface QuoteBreakdown {
+  labor: number;
+  materials: number;
+  disposal: number;
+  equipment: number;
+  overhead: number;
+}
+
+export interface QuoteResponse {
+  estimatedRange: {
+    low: number;
+    high: number;
+    average: number;
+  };
+  confidence: 'high' | 'medium' | 'low';
+  basedOn: number;
+  similarProjects: SimilarProject[];
+  breakdown?: QuoteBreakdown;
+  suggestedPricePerSqFt?: number;
+}
+
+export interface ProjectTypeOption {
+  code: ProjectType;
+  name: string;
+  description: string;
+  typicalPricePerSqFt: number;
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 import { Header } from "@/components/layout/header";
-import { BidsTable, BidsFilters, BidsSummary } from "@/components/bids";
+import { BidsTable, BidsFilters, BidsSummary, NewBidDialog } from "@/components/bids";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppStore } from "@/lib/store";
@@ -15,31 +15,37 @@ export default function BidsPage() {
   const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [newBidDialogOpen, setNewBidDialogOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [client, setClient] = useState("all");
 
   // Fetch bids from API
-  useEffect(() => {
-    async function fetchBids() {
-      try {
-        setLoading(true);
-        const response = await fetch("/api/bids");
-        if (!response.ok) {
-          throw new Error("Failed to fetch bids");
-        }
-        const data = await response.json();
-        setBids(data.bids || []);
-      } catch (err) {
-        console.error("Error fetching bids:", err);
-        setError(err instanceof Error ? err.message : "Failed to load bids");
-      } finally {
-        setLoading(false);
+  const fetchBids = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/bids");
+      if (!response.ok) {
+        throw new Error("Failed to fetch bids");
       }
+      const data = await response.json();
+      setBids(data.bids || []);
+    } catch (err) {
+      console.error("Error fetching bids:", err);
+      setError(err instanceof Error ? err.message : "Failed to load bids");
+    } finally {
+      setLoading(false);
     }
+  }, []);
 
+  useEffect(() => {
     fetchBids();
+  }, [fetchBids]);
+
+  // Handle new bid created
+  const handleBidCreated = useCallback((bid: Bid) => {
+    setBids((prev) => [bid, ...prev]);
   }, []);
 
   // Get unique clients
@@ -128,11 +134,19 @@ export default function BidsPage() {
         title="Bids"
         description="Track bid submissions and conversion rates"
         action={
-          <Button size="sm" className="gap-2">
+          <Button size="sm" className="gap-2" onClick={() => setNewBidDialogOpen(true)}>
             <Plus className="h-4 w-4" />
             New Bid
           </Button>
         }
+      />
+
+      {/* New Bid Dialog */}
+      <NewBidDialog
+        open={newBidDialogOpen}
+        onOpenChange={setNewBidDialogOpen}
+        onBidCreated={handleBidCreated}
+        clients={clients}
       />
       <div className="p-4 md:p-6 space-y-6">
         {/* Summary */}
