@@ -16,6 +16,7 @@ export interface Project {
   status: 'active' | 'closed';
   estimateAmount: number | null;
   estimateDriveId: string | null;
+  hasEstimate: boolean;
   hasPBS: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -253,6 +254,44 @@ export interface PayablesResponse {
     dueThisWeek: number;
   };
   lastSyncedAt: Date | null;
+}
+
+// -------------------------------------------
+// Project Activities / Timeline
+// -------------------------------------------
+export type ActivityType = 'email' | 'invoice' | 'bill' | 'bid' | 'note' | 'status_change' | 'file';
+
+export interface Activity {
+  id: string;
+  projectId: string;
+  activityType: ActivityType;
+  title: string;
+  description?: string;
+  activityDate: Date;
+  metadata: Record<string, unknown>;
+  sourceId?: string;
+  sourceType?: string;
+  // For emails
+  emailFrom?: string;
+  emailTo?: string;
+  emailSubject?: string;
+  emailSnippet?: string;
+  emailThreadId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TimelineResponse {
+  activities: Activity[];
+  total: number;
+  hasMore: boolean;
+}
+
+export interface AddActivityRequest {
+  activityType: 'note' | 'status_change';
+  title: string;
+  description?: string;
+  activityDate?: string; // Defaults to now
 }
 
 // -------------------------------------------

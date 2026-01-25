@@ -8,7 +8,14 @@ import {
   ProjectFinancials,
   ProjectInvoices,
   ProjectBills,
+  ProjectTimeline,
 } from "@/components/projects";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import {
   getProjectById,
   getInvoicesByProjectId,
@@ -52,11 +59,26 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         {/* Financial Summary */}
         <ProjectFinancials project={project} />
 
-        {/* Invoices and Bills */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <ProjectInvoices invoices={invoices} />
-          <ProjectBills bills={bills} />
-        </div>
+        {/* Tabs for Timeline and Financials */}
+        <Tabs defaultValue="timeline" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+            <TabsTrigger value="financials">Invoices & Bills</TabsTrigger>
+          </TabsList>
+
+          {/* Timeline Tab - The Story of the Project */}
+          <TabsContent value="timeline" className="mt-6">
+            <ProjectTimeline projectId={id} />
+          </TabsContent>
+
+          {/* Invoices and Bills Tab */}
+          <TabsContent value="financials" className="mt-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <ProjectInvoices invoices={invoices} />
+              <ProjectBills bills={bills} />
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
