@@ -116,7 +116,7 @@ export default function SettingsPage() {
         setSyncMessage(message);
         await fetchConnections();
       } else {
-        setSyncMessage(data.error || "Sync failed");
+        setSyncMessage(data.details ? `${data.error}: ${data.details}` : (data.error || "Sync failed"));
       }
     } catch (_error) {
       setSyncMessage("Sync failed - network error");

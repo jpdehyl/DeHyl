@@ -141,6 +141,7 @@ export async function POST() {
     });
   } catch (error) {
     console.error("QuickBooks sync error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
     // Log failed sync
     if (syncLogId) {
@@ -148,14 +149,17 @@ export async function POST() {
         .from("sync_log")
         .update({
           status: "failed",
-          error_message: error instanceof Error ? error.message : "Unknown error",
+          error_message: errorMessage,
           completed_at: new Date().toISOString(),
         })
         .eq("id", syncLogId);
     }
 
     return NextResponse.json(
-      { error: "Failed to sync QuickBooks data" },
+      { 
+        error: "Failed to sync QuickBooks data",
+        details: errorMessage
+      },
       { status: 500 }
     );
   }
