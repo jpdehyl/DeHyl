@@ -80,14 +80,14 @@ function ProjectsContent() {
       // Special filters (missing-estimate, missing-pbs, has-issues)
       switch (filter) {
         case "missing-estimate":
-          if (project.estimateAmount !== null) return false;
+          if (project.hasEstimate) return false;
           break;
         case "missing-pbs":
           if (project.hasPBS) return false;
           break;
         case "has-issues":
           // Show projects with either missing estimate or missing PBS
-          if (project.estimateAmount !== null && project.hasPBS) return false;
+          if (project.hasEstimate && project.hasPBS) return false;
           break;
       }
 

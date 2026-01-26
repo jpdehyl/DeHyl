@@ -9,6 +9,7 @@ import {
   ProjectInvoices,
   ProjectBills,
   ProjectTimeline,
+  PortalSettings,
 } from "@/components/projects";
 import {
   Tabs,
@@ -183,6 +184,9 @@ export default function ProjectPage({ params }: ProjectPageProps) {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Client Portal Settings */}
+        <PortalSettings projectId={id} projectCode={project.code} />
       </div>
     </div>
   );

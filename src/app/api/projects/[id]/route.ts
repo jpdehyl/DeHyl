@@ -63,6 +63,16 @@ export async function GET(
     finalRevenue: proj.final_revenue ? Number(proj.final_revenue) : null,
     profitMargin: proj.profit_margin ? Number(proj.profit_margin) : null,
     location: proj.location || null,
+    portalEnabled: proj.portal_enabled ?? false,
+    portalAccessCode: proj.portal_access_code ?? null,
+    portalSettings: proj.portal_settings ?? {
+      showTimeline: true,
+      showPhotos: true,
+      showDocuments: false,
+      showFinancials: false,
+      showContacts: false,
+      clientMessage: "",
+    },
     createdAt: new Date(proj.created_at),
     updatedAt: new Date(proj.updated_at),
     totals: {

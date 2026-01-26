@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { FileSpreadsheet, FolderSync, Gavel } from "lucide-react";
+import { FileSpreadsheet, FolderSync, Gavel, Link2, FileCheck } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { ConnectionCard, ClientMappings } from "@/components/settings";
 import { mockClientMappings } from "@/lib/mock-data";
@@ -28,7 +28,10 @@ export default function SettingsPage() {
   const [isSyncingQB, setIsSyncingQB] = useState(false);
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
   const [isSyncingBids, setIsSyncingBids] = useState(false);
+  const [isSyncingEstimates, setIsSyncingEstimates] = useState(false);
+  const [isAutoMatching, setIsAutoMatching] = useState(false);
   const [bidsLastSyncedAt, setBidsLastSyncedAt] = useState<Date | null>(null);
+  const [estimatesLastSyncedAt, setEstimatesLastSyncedAt] = useState<Date | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   // Fetch connection status from API
@@ -165,6 +168,52 @@ export default function SettingsPage() {
     setIsSyncingBids(false);
   };
 
+  const handleSyncEstimates = async () => {
+    setIsSyncingEstimates(true);
+    setSyncMessage(null);
+    try {
+      const res = await fetch("/api/sync/estimates", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setSyncMessage(
+          `Scanned ${data.scanned} projects: ${data.withEstimates} with estimates, ${data.withoutEstimates} without`
+        );
+        setEstimatesLastSyncedAt(new Date());
+      } else {
+        setSyncMessage(data.error || "Estimates sync failed");
+      }
+    } catch (error) {
+      setSyncMessage("Estimates sync failed - network error");
+    }
+    setIsSyncingEstimates(false);
+  };
+
+  const handleAutoMatch = async () => {
+    setIsAutoMatching(true);
+    setSyncMessage(null);
+    try {
+      const res = await fetch("/api/matching/auto-match", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        const needsReview = data.unmatched;
+        if (data.matched > 0) {
+          setSyncMessage(
+            `Matched ${data.matched} invoices${needsReview > 0 ? `, ${needsReview} need manual review` : ""}`
+          );
+        } else if (needsReview > 0) {
+          setSyncMessage(`No high-confidence matches found, ${needsReview} invoices need manual review`);
+        } else {
+          setSyncMessage("No unassigned invoices to match");
+        }
+      } else {
+        setSyncMessage(data.error || "Auto-match failed");
+      }
+    } catch (error) {
+      setSyncMessage("Auto-match failed - network error");
+    }
+    setIsAutoMatching(false);
+  };
+
   return (
     <div
       className={cn(
@@ -263,6 +312,78 @@ export default function SettingsPage() {
                 {!connections.googleDrive.connected && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     Connect Google Drive first to sync bids
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-primary/10 p-2">
+                    <FileCheck className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Sync Estimates</CardTitle>
+                    <CardDescription>
+                      Scan project folders for estimate files
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {estimatesLastSyncedAt ? (
+                      <>Last synced: {estimatesLastSyncedAt.toLocaleString()}</>
+                    ) : (
+                      <>Never synced</>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleSyncEstimates}
+                    disabled={isSyncingEstimates || !connections.googleDrive.connected}
+                  >
+                    {isSyncingEstimates ? "Scanning..." : "Sync Estimates"}
+                  </Button>
+                </div>
+                {!connections.googleDrive.connected && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Connect Google Drive first to scan estimates
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-primary/10 p-2">
+                    <Link2 className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Auto-Match Invoices</CardTitle>
+                    <CardDescription>
+                      Automatically link invoices to projects by client name
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Matches invoices with &gt;80% confidence
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleAutoMatch}
+                    disabled={isAutoMatching || !connections.quickbooks.connected}
+                  >
+                    {isAutoMatching ? "Matching..." : "Auto-Match"}
+                  </Button>
+                </div>
+                {!connections.quickbooks.connected && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Connect QuickBooks first to match invoices
                   </p>
                 )}
               </CardContent>

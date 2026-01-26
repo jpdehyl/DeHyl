@@ -27,8 +27,24 @@ export interface Project {
   finalRevenue: number | null;
   profitMargin: number | null;
   location: string | null;
+  // Portal fields
+  portalEnabled: boolean;
+  portalAccessCode: string | null;
+  portalSettings: PortalSettings;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// -------------------------------------------
+// Portal Settings
+// -------------------------------------------
+export interface PortalSettings {
+  showTimeline: boolean;
+  showPhotos: boolean;
+  showDocuments: boolean;
+  showFinancials: boolean;
+  showContacts: boolean;
+  clientMessage: string;
 }
 
 export interface ProjectWithTotals extends Project {
@@ -427,4 +443,43 @@ export interface ProjectTypeOption {
   name: string;
   description: string;
   typicalPricePerSqFt: number;
+}
+
+// -------------------------------------------
+// Portal Types
+// -------------------------------------------
+export interface PortalPhoto {
+  id: string;
+  url: string;
+  thumbnailUrl?: string;
+  caption?: string;
+  date: Date;
+}
+
+export interface PortalActivity {
+  id: string;
+  type: 'note' | 'status_change' | 'photo' | 'milestone';
+  title: string;
+  description?: string;
+  date: Date;
+}
+
+export interface PortalResponse {
+  project: {
+    name: string;
+    clientName: string;
+    description: string;
+    status: 'active' | 'closed';
+    clientMessage?: string;
+  };
+  timeline?: PortalActivity[];
+  photos?: PortalPhoto[];
+  lastUpdated: string;
+}
+
+export interface PortalManagementResponse {
+  enabled: boolean;
+  accessCode: string | null;
+  portalUrl: string | null;
+  settings: PortalSettings;
 }

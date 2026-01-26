@@ -213,6 +213,47 @@ export class GoogleDriveClient {
 
     return (result.files?.length || 0) > 0;
   }
+
+  // Find estimate files or folders in a project folder
+  // Returns the first matching file/folder ID, or null if none found
+  async findEstimateFile(folderId: string): Promise<{ id: string; name: string; isFolder: boolean } | null> {
+    // First, look for "Estimate" or "Estimates" subfolders
+    const folderQuery = encodeURIComponent(
+      `'${folderId}' in parents and (name = 'Estimate' or name = 'Estimates') and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
+    );
+
+    const folderResult = await this.apiRequest<{
+      files: DriveFolder[];
+    }>(`/files?q=${folderQuery}&fields=files(id,name,mimeType)`);
+
+    if (folderResult.files && folderResult.files.length > 0) {
+      return {
+        id: folderResult.files[0].id,
+        name: folderResult.files[0].name,
+        isFolder: true,
+      };
+    }
+
+    // If no folder found, look for files with "estimate" in the name (case insensitive)
+    const fileQuery = encodeURIComponent(
+      `'${folderId}' in parents and name contains 'estimate' and trashed = false`
+    );
+
+    const fileResult = await this.apiRequest<{
+      files: DriveFolder[];
+    }>(`/files?q=${fileQuery}&fields=files(id,name,mimeType)&orderBy=modifiedTime desc`);
+
+    if (fileResult.files && fileResult.files.length > 0) {
+      const file = fileResult.files[0];
+      return {
+        id: file.id,
+        name: file.name,
+        isFolder: file.mimeType === 'application/vnd.google-apps.folder',
+      };
+    }
+
+    return null;
+  }
 }
 
 // Singleton instance

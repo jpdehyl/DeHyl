@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/header";
 import {
   KPIGrid,
@@ -10,33 +10,41 @@ import {
   RevenueTrendChart,
   EstimateVsActualChart,
   BidConversionChart,
-  generateRevenueTrendData,
+  ClientPerformance,
 } from "@/components/dashboard";
+import type { RevenueMonthData, RevenueTotals } from "@/components/dashboard";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { DashboardData, ProjectWithTotals, Bid } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+
+interface RevenueData {
+  months: RevenueMonthData[];
+  totals: RevenueTotals;
+  message?: string;
+}
 
 export default function DashboardPage() {
   const { sidebarOpen } = useAppStore();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [projects, setProjects] = useState<ProjectWithTotals[]>([]);
   const [bids, setBids] = useState<Bid[]>([]);
+  const [revenueData, setRevenueData] = useState<RevenueData | null>(null);
+  const [revenueLoading, setRevenueLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Generate revenue trend data
-  const revenueTrendData = useMemo(() => generateRevenueTrendData(), []);
 
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
+        setRevenueLoading(true);
 
-        const [dashboardRes, projectsRes, bidsRes] = await Promise.all([
+        const [dashboardRes, projectsRes, bidsRes, revenueRes] = await Promise.all([
           fetch("/api/dashboard"),
           fetch("/api/projects"),
           fetch("/api/bids"),
+          fetch("/api/analytics/revenue"),
         ]);
 
         if (!dashboardRes.ok) {
@@ -49,15 +57,18 @@ export default function DashboardPage() {
         const dashboard = await dashboardRes.json();
         const projectsData = await projectsRes.json();
         const bidsData = bidsRes.ok ? await bidsRes.json() : { bids: [] };
+        const revenue = revenueRes.ok ? await revenueRes.json() : { months: [], totals: { totalInvoiced: 0, totalCollected: 0, totalOutstanding: 0 } };
 
         setDashboardData(dashboard);
         setProjects(projectsData.projects || []);
         setBids(bidsData.bids || []);
+        setRevenueData(revenue);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
         setError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
         setLoading(false);
+        setRevenueLoading(false);
       }
     }
 
@@ -135,12 +146,20 @@ export default function DashboardPage() {
 
         {/* Charts Row */}
         <div className="grid gap-6 lg:grid-cols-2">
-          <RevenueTrendChart data={revenueTrendData} />
+          <RevenueTrendChart
+            data={revenueData?.months || []}
+            totals={revenueData?.totals}
+            loading={revenueLoading}
+            emptyMessage={revenueData?.message}
+          />
           <EstimateVsActualChart projects={projects} />
         </div>
 
         {/* Bid Conversion Chart */}
         <BidConversionChart bids={bids} />
+
+        {/* Client Performance Analytics */}
+        <ClientPerformance />
 
         {/* Main content grid */}
         <div className="grid gap-6 lg:grid-cols-3">

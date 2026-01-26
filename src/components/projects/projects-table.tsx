@@ -6,6 +6,7 @@ import {
   ArrowUpDown,
   ChevronRight,
   AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 import {
   Table,
@@ -157,14 +158,14 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-medium">{project.code}</span>
-                      {(!project.estimateAmount || !project.hasPBS) && (
+                      {(!project.hasEstimate || !project.hasPBS) && (
                         <Tooltip>
                           <TooltipTrigger>
                             <AlertTriangle className="h-4 w-4 text-warning" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            {!project.estimateAmount && "Missing estimate"}
-                            {!project.estimateAmount && !project.hasPBS && ", "}
+                            {!project.hasEstimate && "Missing estimate"}
+                            {!project.hasEstimate && !project.hasPBS && ", "}
                             {!project.hasPBS && "Missing PBS"}
                           </TooltipContent>
                         </Tooltip>
@@ -183,9 +184,28 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
                     {project.description}
                   </TableCell>
                   <TableCell className="text-right hidden sm:table-cell">
-                    {project.estimateAmount
-                      ? formatCurrency(project.estimateAmount)
-                      : "-"}
+                    <div className="flex items-center justify-end gap-2">
+                      {project.hasEstimate ? (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <CheckCircle2 className="h-4 w-4 text-success" />
+                          </TooltipTrigger>
+                          <TooltipContent>Has estimate file</TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <AlertTriangle className="h-4 w-4 text-warning" />
+                          </TooltipTrigger>
+                          <TooltipContent>Missing estimate</TooltipContent>
+                        </Tooltip>
+                      )}
+                      <span>
+                        {project.estimateAmount
+                          ? formatCurrency(project.estimateAmount)
+                          : "-"}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell className="text-right hidden lg:table-cell">
                     {formatCurrency(project.totals.invoiced)}

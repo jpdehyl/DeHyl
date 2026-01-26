@@ -6,7 +6,18 @@ import type {
   ClientMapping,
   DashboardData,
   ConnectionStatus,
+  PortalSettings,
 } from "@/types";
+
+// Default portal settings
+const defaultPortalSettings: PortalSettings = {
+  showTimeline: true,
+  showPhotos: true,
+  showDocuments: false,
+  showFinancials: false,
+  showContacts: false,
+  clientMessage: "",
+};
 
 // ===========================================
 // Mock Projects
@@ -30,6 +41,9 @@ export const mockProjects: ProjectWithTotals[] = [
     finalRevenue: null,
     profitMargin: null,
     location: "Kamloops, BC",
+    portalEnabled: false,
+    portalAccessCode: null,
+    portalSettings: defaultPortalSettings,
     createdAt: new Date("2026-01-07"),
     updatedAt: new Date("2026-01-18"),
     totals: {
@@ -58,6 +72,9 @@ export const mockProjects: ProjectWithTotals[] = [
     finalRevenue: null,
     profitMargin: null,
     location: "Vancouver, BC",
+    portalEnabled: false,
+    portalAccessCode: null,
+    portalSettings: defaultPortalSettings,
     createdAt: new Date("2026-01-06"),
     updatedAt: new Date("2026-01-17"),
     totals: {
@@ -86,6 +103,9 @@ export const mockProjects: ProjectWithTotals[] = [
     finalRevenue: null,
     profitMargin: null,
     location: "Burnaby, BC",
+    portalEnabled: false,
+    portalAccessCode: null,
+    portalSettings: defaultPortalSettings,
     createdAt: new Date("2025-12-15"),
     updatedAt: new Date("2026-01-15"),
     totals: {
@@ -114,6 +134,9 @@ export const mockProjects: ProjectWithTotals[] = [
     finalRevenue: null,
     profitMargin: null,
     location: "Burnaby, BC",
+    portalEnabled: false,
+    portalAccessCode: null,
+    portalSettings: defaultPortalSettings,
     createdAt: new Date("2026-01-08"),
     updatedAt: new Date("2026-01-19"),
     totals: {
@@ -142,6 +165,9 @@ export const mockProjects: ProjectWithTotals[] = [
     finalRevenue: 85000,
     profitMargin: 38.8,
     location: "Vancouver, BC",
+    portalEnabled: false,
+    portalAccessCode: null,
+    portalSettings: defaultPortalSettings,
     createdAt: new Date("2025-12-01"),
     updatedAt: new Date("2026-01-10"),
     totals: {
@@ -170,6 +196,9 @@ export const mockProjects: ProjectWithTotals[] = [
     finalRevenue: null,
     profitMargin: null,
     location: "Langley, BC",
+    portalEnabled: false,
+    portalAccessCode: null,
+    portalSettings: defaultPortalSettings,
     createdAt: new Date("2026-01-09"),
     updatedAt: new Date("2026-01-18"),
     totals: {
@@ -198,6 +227,9 @@ export const mockProjects: ProjectWithTotals[] = [
     finalRevenue: null,
     profitMargin: null,
     location: "Surrey, BC",
+    portalEnabled: false,
+    portalAccessCode: null,
+    portalSettings: defaultPortalSettings,
     createdAt: new Date("2026-01-10"),
     updatedAt: new Date("2026-01-19"),
     totals: {
