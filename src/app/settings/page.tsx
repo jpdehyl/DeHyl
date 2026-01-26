@@ -105,7 +105,15 @@ export default function SettingsPage() {
       const res = await fetch("/api/sync/quickbooks", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
-        setSyncMessage(`Synced ${data.invoices_synced} invoices and ${data.bills_synced} bills`);
+        // Auto-match invoices to projects after sync
+        const matchRes = await fetch("/api/match-invoices", { method: "POST" });
+        const matchData = await matchRes.json();
+        
+        let message = `Synced ${data.invoices_synced} invoices and ${data.bills_synced} bills`;
+        if (matchRes.ok && (matchData.invoices?.matched > 0 || matchData.bills?.matched > 0)) {
+          message += ` • Matched ${matchData.invoices?.matched || 0} invoices, ${matchData.bills?.matched || 0} bills to projects`;
+        }
+        setSyncMessage(message);
         await fetchConnections();
       } else {
         setSyncMessage(data.error || "Sync failed");
