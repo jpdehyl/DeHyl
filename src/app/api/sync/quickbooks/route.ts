@@ -35,16 +35,22 @@ function extractProjectCode(text: string | null | undefined): string | null {
 
 // Find project code in invoice/bill data
 function findProjectCodeInDocument(doc: QBInvoice | QBBill): string | null {
-  // Check memo/private note first
-  const fromMemo = extractProjectCode(doc.PrivateNote);
-  if (fromMemo) return fromMemo;
-  
-  // Check line item descriptions
-  if (doc.Line) {
-    for (const line of doc.Line) {
-      const fromLine = extractProjectCode(line.Description);
-      if (fromLine) return fromLine;
+  try {
+    // Check memo/private note first
+    const fromMemo = extractProjectCode(doc.PrivateNote);
+    if (fromMemo) return fromMemo;
+    
+    // Check line item descriptions
+    if (doc.Line && Array.isArray(doc.Line)) {
+      for (const line of doc.Line) {
+        if (line && line.Description) {
+          const fromLine = extractProjectCode(line.Description);
+          if (fromLine) return fromLine;
+        }
+      }
     }
+  } catch (e) {
+    console.error("Error extracting project code:", e);
   }
   
   return null;
@@ -210,6 +216,7 @@ export async function POST() {
     });
   } catch (error) {
     console.error("QuickBooks sync error:", error);
+    console.error("Error details:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
 
     // Log failed sync
     if (syncLogId) {
@@ -217,14 +224,17 @@ export async function POST() {
         .from("sync_log")
         .update({
           status: "failed",
-          error_message: error instanceof Error ? error.message : "Unknown error",
+          error_message: error instanceof Error ? error.message : String(error),
           completed_at: new Date().toISOString(),
         })
         .eq("id", syncLogId);
     }
 
     return NextResponse.json(
-      { error: "Failed to sync QuickBooks data" },
+      { 
+        error: "Failed to sync QuickBooks data",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
