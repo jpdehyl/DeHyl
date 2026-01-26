@@ -11,7 +11,6 @@ interface QBInvoice {
   TxnDate: string;
   DueDate: string;
   PrivateNote?: string;
-  Line?: Array<{ Description?: string }>;
 }
 
 interface QBBill {
@@ -22,38 +21,6 @@ interface QBBill {
   TxnDate: string;
   DueDate: string;
   PrivateNote?: string;
-  Line?: Array<{ Description?: string }>;
-}
-
-// Extract project code from text (format: 7 digits starting with year, e.g., 2601007)
-function extractProjectCode(text: string | null | undefined): string | null {
-  if (!text) return null;
-  // Match 7-digit codes that start with 2 (for 2020s) followed by 2 digits for year
-  const match = text.match(/\b(2[0-9]{6})\b/);
-  return match ? match[1] : null;
-}
-
-// Find project code in invoice/bill data
-function findProjectCodeInDocument(doc: QBInvoice | QBBill): string | null {
-  try {
-    // Check memo/private note first
-    const fromMemo = extractProjectCode(doc.PrivateNote);
-    if (fromMemo) return fromMemo;
-    
-    // Check line item descriptions
-    if (doc.Line && Array.isArray(doc.Line)) {
-      for (const line of doc.Line) {
-        if (line && line.Description) {
-          const fromLine = extractProjectCode(line.Description);
-          if (fromLine) return fromLine;
-        }
-      }
-    }
-  } catch (e) {
-    console.error("Error extracting project code:", e);
-  }
-  
-  return null;
 }
 
 export async function POST() {
@@ -94,34 +61,12 @@ export async function POST() {
       realmId: tokenData.realm_id,
     });
 
-    // Get all projects for code matching
-    const { data: projects } = await supabase
-      .from("projects")
-      .select("id, code");
-    
-    const projectCodeMap = new Map(
-      (projects || []).map((p) => [p.code, p.id])
-    );
-
     // Sync invoices
     const invoices = (await qbClient.getOpenInvoices()) as unknown as QBInvoice[];
-    let invoicesMatched = 0;
-    let invoicesUnmatched = 0;
-    
     const mappedInvoices = invoices.map((inv) => {
       const balance = parseFloat(inv.Balance);
       const dueDate = inv.DueDate ? new Date(inv.DueDate) : null;
       const isOverdue = dueDate && dueDate < new Date() && balance > 0;
-
-      // Find project by code in memo or line items
-      const projectCode = findProjectCodeInDocument(inv);
-      const projectId = projectCode ? projectCodeMap.get(projectCode) || null : null;
-      
-      if (projectId) {
-        invoicesMatched++;
-      } else {
-        invoicesUnmatched++;
-      }
 
       return {
         qb_id: inv.Id,
@@ -133,8 +78,6 @@ export async function POST() {
         due_date: inv.DueDate || null,
         status: balance === 0 ? "paid" : isOverdue ? "overdue" : "sent",
         memo: inv.PrivateNote || null,
-        project_id: projectId,
-        match_confidence: projectId ? "high" : null,
         synced_at: new Date().toISOString(),
       };
     });
@@ -151,23 +94,10 @@ export async function POST() {
 
     // Sync bills
     const bills = (await qbClient.getOpenBills()) as unknown as QBBill[];
-    let billsMatched = 0;
-    let billsUnmatched = 0;
-    
     const mappedBills = bills.map((bill) => {
       const balance = parseFloat(bill.Balance);
       const dueDate = bill.DueDate ? new Date(bill.DueDate) : null;
       const isOverdue = dueDate && dueDate < new Date() && balance > 0;
-
-      // Find project by code in memo or line items
-      const projectCode = findProjectCodeInDocument(bill);
-      const projectId = projectCode ? projectCodeMap.get(projectCode) || null : null;
-      
-      if (projectId) {
-        billsMatched++;
-      } else {
-        billsUnmatched++;
-      }
 
       return {
         qb_id: bill.Id,
@@ -178,7 +108,6 @@ export async function POST() {
         due_date: bill.DueDate || null,
         status: balance === 0 ? "paid" : isOverdue ? "overdue" : "open",
         memo: bill.PrivateNote || null,
-        project_id: projectId,
         synced_at: new Date().toISOString(),
       };
     });
@@ -208,15 +137,10 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       invoices_synced: invoices.length,
-      invoices_matched: invoicesMatched,
-      invoices_unmatched: invoicesUnmatched,
       bills_synced: bills.length,
-      bills_matched: billsMatched,
-      bills_unmatched: billsUnmatched,
     });
   } catch (error) {
     console.error("QuickBooks sync error:", error);
-    console.error("Error details:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
 
     // Log failed sync
     if (syncLogId) {
@@ -224,17 +148,14 @@ export async function POST() {
         .from("sync_log")
         .update({
           status: "failed",
-          error_message: error instanceof Error ? error.message : String(error),
+          error_message: error instanceof Error ? error.message : "Unknown error",
           completed_at: new Date().toISOString(),
         })
         .eq("id", syncLogId);
     }
 
     return NextResponse.json(
-      { 
-        error: "Failed to sync QuickBooks data",
-        details: error instanceof Error ? error.message : String(error)
-      },
+      { error: "Failed to sync QuickBooks data" },
       { status: 500 }
     );
   }
