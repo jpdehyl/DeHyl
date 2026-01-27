@@ -483,3 +483,41 @@ export interface PortalManagementResponse {
   portalUrl: string | null;
   settings: PortalSettings;
 }
+
+// -------------------------------------------
+// Project Photos
+// -------------------------------------------
+export interface ProjectPhoto {
+  id: string;
+  projectId: string;
+  driveFileId: string;
+  driveFolderId: string | null;
+  filename: string;
+  originalFilename: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+  thumbnailUrl: string | null;
+  photoDate: Date | null;
+  uploadedAt: Date;
+  createdAt: Date;
+}
+
+export interface PhotoUploadResponse {
+  uploaded: {
+    id: string;
+    driveFileId: string;
+    filename: string;
+    thumbnailUrl: string | null;
+  }[];
+  failed: {
+    originalName: string;
+    error: string;
+  }[];
+}
+
+export interface PhotoListResponse {
+  photos: ProjectPhoto[];
+  total: number;
+  hasMore: boolean;
+  dates: string[];  // Available date folders
+}

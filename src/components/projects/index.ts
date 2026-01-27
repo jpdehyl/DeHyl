@@ -6,4 +6,5 @@ export { ProjectFinancials } from "./project-financials";
 export { ProjectInvoices } from "./project-invoices";
 export { ProjectBills } from "./project-bills";
 export { ProjectTimeline } from "./project-timeline";
+export { ProjectPhotos } from "./project-photos";
 export { PortalSettings } from "./portal-settings";

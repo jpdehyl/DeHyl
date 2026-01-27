@@ -2,6 +2,7 @@
 // https://developers.google.com/drive/api/v3/reference
 
 const GOOGLE_API_BASE = "https://www.googleapis.com/drive/v3";
+const GOOGLE_UPLOAD_BASE = "https://www.googleapis.com/upload/drive/v3";
 const PROJECTS_FOLDER_ID =
   process.env.GOOGLE_DRIVE_PROJECTS_FOLDER_ID || "1qRGYL7NylTEkjjvoZStyjPWJyWR9fI6n";
 
@@ -25,6 +26,27 @@ interface DriveFolder {
   modifiedTime?: string;
 }
 
+export interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  size?: string;
+  webViewLink?: string;
+  thumbnailLink?: string;
+  createdTime?: string;
+  modifiedTime?: string;
+  parents?: string[];
+}
+
+export interface UploadResult {
+  id: string;
+  name: string;
+  mimeType: string;
+  webViewLink: string;
+  thumbnailLink?: string;
+  size: number;
+}
+
 export class GoogleDriveClient {
   private config: GoogleConfig;
   private tokens: GoogleTokens | null = null;
@@ -43,7 +65,7 @@ export class GoogleDriveClient {
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
       response_type: "code",
-      scope: "https://www.googleapis.com/auth/drive.readonly email profile",
+      scope: "https://www.googleapis.com/auth/drive.file email profile",
       access_type: "offline",
       prompt: "consent",
       state,
@@ -253,6 +275,166 @@ export class GoogleDriveClient {
     }
 
     return null;
+  }
+
+  // Create a folder if it doesn't exist, return the folder ID
+  async createOrGetFolder(parentId: string, folderName: string): Promise<string> {
+    // First, check if folder already exists
+    const query = encodeURIComponent(
+      `'${parentId}' in parents and name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
+    );
+
+    const result = await this.apiRequest<{
+      files: DriveFolder[];
+    }>(`/files?q=${query}&fields=files(id,name)`);
+
+    if (result.files && result.files.length > 0) {
+      return result.files[0].id;
+    }
+
+    // Folder doesn't exist, create it
+    const createResponse = await this.apiRequest<DriveFolder>("/files", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: folderName,
+        mimeType: "application/vnd.google-apps.folder",
+        parents: [parentId],
+      }),
+    });
+
+    return createResponse.id;
+  }
+
+  // Upload a file to Google Drive
+  async uploadFile(
+    parentId: string,
+    fileName: string,
+    mimeType: string,
+    content: ArrayBuffer | Buffer
+  ): Promise<UploadResult> {
+    if (!this.tokens) {
+      throw new Error("Not authenticated. Call setTokens() first.");
+    }
+
+    // Check if token needs refresh
+    if (new Date() >= this.tokens.expiresAt) {
+      await this.refreshAccessToken(this.tokens.refreshToken);
+    }
+
+    // Create metadata
+    const metadata = {
+      name: fileName,
+      parents: [parentId],
+    };
+
+    // Use multipart upload for files < 5MB, resumable for larger
+    const boundary = "-------314159265358979323846";
+    const delimiter = `\r\n--${boundary}\r\n`;
+    const closeDelimiter = `\r\n--${boundary}--`;
+
+    // Build multipart body
+    const metadataString = JSON.stringify(metadata);
+    const contentArray = content instanceof ArrayBuffer ? new Uint8Array(content) : content;
+
+    // Create multipart body as Uint8Array
+    const encoder = new TextEncoder();
+    const metadataPart = encoder.encode(
+      `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${metadataString}`
+    );
+    const contentTypePart = encoder.encode(
+      `${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n`
+    );
+    const base64Content = encoder.encode(Buffer.from(contentArray).toString("base64"));
+    const closePart = encoder.encode(closeDelimiter);
+
+    // Concatenate all parts
+    const body = new Uint8Array(
+      metadataPart.length + contentTypePart.length + base64Content.length + closePart.length
+    );
+    let offset = 0;
+    body.set(metadataPart, offset);
+    offset += metadataPart.length;
+    body.set(contentTypePart, offset);
+    offset += contentTypePart.length;
+    body.set(base64Content, offset);
+    offset += base64Content.length;
+    body.set(closePart, offset);
+
+    const response = await fetch(
+      `${GOOGLE_UPLOAD_BASE}/files?uploadType=multipart&fields=id,name,mimeType,size,webViewLink,thumbnailLink`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.tokens.accessToken}`,
+          "Content-Type": `multipart/related; boundary=${boundary}`,
+        },
+        body: body,
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to upload file: ${error}`);
+    }
+
+    const file: DriveFile = await response.json();
+
+    return {
+      id: file.id,
+      name: file.name,
+      mimeType: file.mimeType,
+      webViewLink: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
+      thumbnailLink: file.thumbnailLink,
+      size: parseInt(file.size || "0", 10),
+    };
+  }
+
+  // List photos in a folder (images only)
+  async listPhotos(
+    folderId: string,
+    options?: { pageSize?: number; pageToken?: string }
+  ): Promise<{ photos: DriveFile[]; nextPageToken?: string }> {
+    const pageSize = options?.pageSize || 50;
+    const query = encodeURIComponent(
+      `'${folderId}' in parents and mimeType contains 'image/' and trashed = false`
+    );
+
+    let url = `/files?q=${query}&fields=files(id,name,mimeType,size,webViewLink,thumbnailLink,createdTime,modifiedTime),nextPageToken&pageSize=${pageSize}&orderBy=createdTime desc`;
+
+    if (options?.pageToken) {
+      url += `&pageToken=${encodeURIComponent(options.pageToken)}`;
+    }
+
+    const result = await this.apiRequest<{
+      files: DriveFile[];
+      nextPageToken?: string;
+    }>(url);
+
+    return {
+      photos: result.files || [],
+      nextPageToken: result.nextPageToken,
+    };
+  }
+
+  // List all subfolders in a folder
+  async listSubfolders(parentId: string): Promise<DriveFolder[]> {
+    const query = encodeURIComponent(
+      `'${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`
+    );
+
+    const result = await this.apiRequest<{
+      files: DriveFolder[];
+    }>(`/files?q=${query}&fields=files(id,name,mimeType,modifiedTime)&orderBy=name`);
+
+    return result.files || [];
+  }
+
+  // Generate a thumbnail URL with specific size
+  getThumbnailUrl(fileId: string, size: number = 200): string {
+    return `https://lh3.googleusercontent.com/d/${fileId}=s${size}`;
   }
 }
 
