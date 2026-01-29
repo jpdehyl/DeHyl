@@ -12,6 +12,7 @@ import {
   ChevronRight,
   FileText,
   TrendingUp,
+  ClipboardList,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -35,6 +36,11 @@ const navItems = [
     title: "Projects",
     href: "/projects",
     icon: FolderKanban,
+  },
+  {
+    title: "Daily Logs",
+    href: "/daily-logs",
+    icon: ClipboardList,
   },
   {
     title: "Bids",
