@@ -315,6 +315,86 @@ export function createProjectManagerDashboard(data: {
 }
 
 /**
+ * Generate Mobile-Optimized dashboard JSON
+ * Prioritizes: Total Receivables, Overdue, Bills due, Quick actions
+ * Single column layout with larger touch targets
+ */
+export function createMobileDashboard(data: {
+  totalReceivables: number;
+  overdueAmount: number;
+  overdueCount: number;
+  billsDueAmount: number;
+  billsDueCount: number;
+  activeProjects: number;
+}): Dashboard {
+  return {
+    version: 1,
+    title: "Quick View",
+    layout: [
+      {
+        component: "stack",
+        props: { direction: "vertical", gap: "md" },
+        children: [
+          {
+            component: "kpi-card",
+            props: {
+              title: "Total Receivables",
+              value: data.totalReceivables,
+              format: "currency",
+              icon: "dollar-sign",
+              variant: "success",
+            },
+          },
+          {
+            component: "kpi-card",
+            props: {
+              title: "Overdue",
+              value: data.overdueAmount,
+              format: "currency",
+              icon: "alert-triangle",
+              variant: data.overdueAmount > 0 ? "danger" : "success",
+              subtitle: `${data.overdueCount} invoices need attention`,
+            },
+          },
+          {
+            component: "kpi-card",
+            props: {
+              title: "Bills Due This Week",
+              value: data.billsDueAmount,
+              format: "currency",
+              icon: "clock",
+              variant: data.billsDueAmount > 0 ? "warning" : "default",
+              subtitle: `${data.billsDueCount} bills`,
+            },
+          },
+          {
+            component: "kpi-card",
+            props: {
+              title: "Active Projects",
+              value: data.activeProjects,
+              format: "number",
+              icon: "folder",
+              variant: "default",
+            },
+          },
+        ],
+      },
+      {
+        component: "quick-actions",
+        props: {
+          actions: [
+            { id: "view-overdue", label: "View Overdue", href: "/receivables?filter=overdue" },
+            { id: "view-projects", label: "Projects", href: "/projects" },
+            { id: "sync", label: "Sync Data", href: "/settings" },
+            { id: "view-bills", label: "Bills Due", href: "/payables?filter=due-soon" },
+          ],
+        },
+      },
+    ],
+  };
+}
+
+/**
  * Get preset key from localStorage
  */
 export function getStoredPreset(): PresetKey {

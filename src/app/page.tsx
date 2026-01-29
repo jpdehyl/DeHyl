@@ -23,7 +23,9 @@ import {
   createExecutiveDashboard,
   createCollectionsDashboard,
   createProjectManagerDashboard,
+  createMobileDashboard,
 } from "@/lib/json-render/presets";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { getDaysOverdue, getDaysUntilDue } from "@/lib/utils";
 
 interface RevenueData {
@@ -51,6 +53,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPreset, setCurrentPreset] = useState<PresetKey>("executive");
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     async function fetchData() {
@@ -207,54 +210,66 @@ export default function DashboardPage() {
   const totalInvoiced = projects.reduce((sum, p) => sum + (p.totals?.invoiced || 0), 0);
   const missingEstimates = projects.filter((p) => p.status === "active" && !p.estimateAmount).length;
 
-  // Generate dashboard JSON based on preset
+  // Generate dashboard JSON based on preset (or mobile if on small screen)
   let presetDashboard: Dashboard;
 
-  switch (currentPreset) {
-    case "executive":
-      presetDashboard = createExecutiveDashboard({
-        totalReceivables: kpis.totalReceivables,
-        totalPayables: kpis.totalPayables,
-        netPosition: kpis.netPosition,
-        activeProjects: kpis.activeProjects,
-        overdueInvoices: kpis.overdueInvoices,
-        billsDueThisWeek: kpis.billsDueThisWeek,
-      });
-      break;
-    case "collections":
-      presetDashboard = createCollectionsDashboard({
-        totalReceivables: kpis.totalReceivables,
-        overdueAmount: kpis.overdueAmount,
-        overdueCount: kpis.overdueInvoices,
-        dueSoonAmount,
-        dueSoonCount: dueSoonInvoices.length,
-        aging,
-        topInvoices: overdueInvoicesList,
-      });
-      break;
-    case "project-manager":
-      presetDashboard = createProjectManagerDashboard({
-        activeProjects: kpis.activeProjects,
-        totalEstimated,
-        totalInvoiced,
-        missingEstimates,
-        recentProjects: activeProjectsList.slice(0, 5).map((p) => ({
-          code: p.code,
-          client: p.clientName || p.clientCode || "-",
-          status: p.status,
-          invoiced: p.totals?.invoiced || 0,
-        })),
-      });
-      break;
-    default:
-      presetDashboard = createExecutiveDashboard({
-        totalReceivables: kpis.totalReceivables,
-        totalPayables: kpis.totalPayables,
-        netPosition: kpis.netPosition,
-        activeProjects: kpis.activeProjects,
-        overdueInvoices: kpis.overdueInvoices,
-        billsDueThisWeek: kpis.billsDueThisWeek,
-      });
+  // Use mobile-optimized layout on small screens
+  if (isMobile) {
+    presetDashboard = createMobileDashboard({
+      totalReceivables: kpis.totalReceivables,
+      overdueAmount: kpis.overdueAmount,
+      overdueCount: kpis.overdueInvoices,
+      billsDueAmount: kpis.billsDueAmount,
+      billsDueCount: kpis.billsDueThisWeek,
+      activeProjects: kpis.activeProjects,
+    });
+  } else {
+    switch (currentPreset) {
+      case "executive":
+        presetDashboard = createExecutiveDashboard({
+          totalReceivables: kpis.totalReceivables,
+          totalPayables: kpis.totalPayables,
+          netPosition: kpis.netPosition,
+          activeProjects: kpis.activeProjects,
+          overdueInvoices: kpis.overdueInvoices,
+          billsDueThisWeek: kpis.billsDueThisWeek,
+        });
+        break;
+      case "collections":
+        presetDashboard = createCollectionsDashboard({
+          totalReceivables: kpis.totalReceivables,
+          overdueAmount: kpis.overdueAmount,
+          overdueCount: kpis.overdueInvoices,
+          dueSoonAmount,
+          dueSoonCount: dueSoonInvoices.length,
+          aging,
+          topInvoices: overdueInvoicesList,
+        });
+        break;
+      case "project-manager":
+        presetDashboard = createProjectManagerDashboard({
+          activeProjects: kpis.activeProjects,
+          totalEstimated,
+          totalInvoiced,
+          missingEstimates,
+          recentProjects: activeProjectsList.slice(0, 5).map((p) => ({
+            code: p.code,
+            client: p.clientName || p.clientCode || "-",
+            status: p.status,
+            invoiced: p.totals?.invoiced || 0,
+          })),
+        });
+        break;
+      default:
+        presetDashboard = createExecutiveDashboard({
+          totalReceivables: kpis.totalReceivables,
+          totalPayables: kpis.totalPayables,
+          netPosition: kpis.netPosition,
+          activeProjects: kpis.activeProjects,
+          overdueInvoices: kpis.overdueInvoices,
+          billsDueThisWeek: kpis.billsDueThisWeek,
+        });
+    }
   }
 
   return (
@@ -264,15 +279,15 @@ export default function DashboardPage() {
     )}>
       <Header
         title="Dashboard"
-        description="Financial overview for DeHyl Constructors"
-        action={<PresetSelector onPresetChange={handlePresetChange} />}
+        description={isMobile ? "Quick view" : "Financial overview for DeHyl Constructors"}
+        action={!isMobile ? <PresetSelector onPresetChange={handlePresetChange} /> : undefined}
       />
       <div className="p-4 md:p-6 space-y-6">
         {/* Dynamic Dashboard based on preset */}
         <JsonRenderer dashboard={presetDashboard} />
 
-        {/* Show charts only for non-executive views or always for project manager */}
-        {currentPreset !== "executive" && (
+        {/* Show charts only for non-executive views on desktop */}
+        {!isMobile && currentPreset !== "executive" && (
           <>
             {/* Charts Row */}
             <div className="grid gap-6 lg:grid-cols-2">
@@ -290,11 +305,11 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* Client Performance - show for project manager */}
-        {currentPreset === "project-manager" && <ClientPerformance />}
+        {/* Client Performance - show for project manager on desktop */}
+        {!isMobile && currentPreset === "project-manager" && <ClientPerformance />}
 
-        {/* Main content grid - show for collections and project-manager */}
-        {currentPreset !== "executive" && (
+        {/* Main content grid - show for collections and project-manager on desktop */}
+        {!isMobile && currentPreset !== "executive" && (
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Alerts - takes 2 columns on large screens */}
             <div className="lg:col-span-2">
@@ -308,8 +323,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Activity Feed - show for all except executive */}
-        {currentPreset !== "executive" && (
+        {/* Activity Feed - show for all except executive on desktop */}
+        {!isMobile && currentPreset !== "executive" && (
           <ActivityFeed activities={recentActivity} />
         )}
       </div>
