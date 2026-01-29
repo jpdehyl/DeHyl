@@ -24,7 +24,7 @@
 
 ## Phase 3: Dynamic Layouts
 
-- [ ] **US-007**: User-Configurable Dashboard Layout
+- [x] **US-007**: User-Configurable Dashboard Layout
 - [x] **US-008**: Dashboard Presets
 - [x] **US-009**: Mobile-Optimized Layout
 

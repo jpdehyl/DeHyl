@@ -10,3 +10,4 @@ export { BidConversionChart } from "./bid-conversion-chart";
 export { ClientPerformance } from "./client-performance";
 export { PresetSelector } from "./preset-selector";
 export { AIGeneratorModal } from "./ai-generator-modal";
+export { CommandPalette } from "./command-palette";

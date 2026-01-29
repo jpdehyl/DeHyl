@@ -12,6 +12,7 @@ import {
   ClientPerformance,
   PresetSelector,
   AIGeneratorModal,
+  CommandPalette,
 } from "@/components/dashboard";
 import type { RevenueMonthData, RevenueTotals } from "@/components/dashboard";
 import { useAppStore } from "@/lib/store";
@@ -350,6 +351,9 @@ export default function DashboardPage() {
           <ActivityFeed activities={recentActivity} />
         )}
       </div>
+
+      {/* Command Palette (Cmd+K) */}
+      <CommandPalette onApply={handleAIGenerate} />
     </div>
   );
 }
