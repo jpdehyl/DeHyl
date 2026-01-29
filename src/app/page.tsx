@@ -11,12 +11,14 @@ import {
   BidConversionChart,
   ClientPerformance,
   PresetSelector,
+  AIGeneratorModal,
 } from "@/components/dashboard";
 import type { RevenueMonthData, RevenueTotals } from "@/components/dashboard";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { DashboardData, ProjectWithTotals, Bid } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { JsonRenderer, type Dashboard } from "@/lib/json-render/renderer";
 import {
   type PresetKey,
@@ -53,6 +55,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPreset, setCurrentPreset] = useState<PresetKey>("executive");
+  const [customDashboard, setCustomDashboard] = useState<Dashboard | null>(null);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -101,6 +104,15 @@ export default function DashboardPage() {
 
   const handlePresetChange = useCallback((preset: PresetKey) => {
     setCurrentPreset(preset);
+    setCustomDashboard(null); // Clear custom dashboard when switching presets
+  }, []);
+
+  const handleAIGenerate = useCallback((dashboard: Dashboard) => {
+    setCustomDashboard(dashboard);
+  }, []);
+
+  const handleClearCustom = useCallback(() => {
+    setCustomDashboard(null);
   }, []);
 
   if (loading) {
@@ -279,12 +291,22 @@ export default function DashboardPage() {
     )}>
       <Header
         title="Dashboard"
-        description={isMobile ? "Quick view" : "Financial overview for DeHyl Constructors"}
-        action={!isMobile ? <PresetSelector onPresetChange={handlePresetChange} /> : undefined}
+        description={isMobile ? "Quick view" : (customDashboard ? "AI Generated View" : "Financial overview for DeHyl Constructors")}
+        action={!isMobile ? (
+          <div className="flex items-center gap-2">
+            {customDashboard && (
+              <Button variant="outline" size="sm" onClick={handleClearCustom}>
+                Back to Presets
+              </Button>
+            )}
+            {!customDashboard && <PresetSelector onPresetChange={handlePresetChange} />}
+            <AIGeneratorModal onApply={handleAIGenerate} />
+          </div>
+        ) : undefined}
       />
       <div className="p-4 md:p-6 space-y-6">
-        {/* Dynamic Dashboard based on preset */}
-        <JsonRenderer dashboard={presetDashboard} />
+        {/* Dynamic Dashboard based on preset or AI-generated */}
+        <JsonRenderer dashboard={customDashboard || presetDashboard} />
 
         {/* Show charts only for non-executive views on desktop */}
         {!isMobile && currentPreset !== "executive" && (
