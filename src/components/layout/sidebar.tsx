@@ -13,6 +13,7 @@ import {
   FileText,
   TrendingUp,
   ClipboardList,
+  Wallet,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -56,6 +57,11 @@ const navItems = [
     title: "Payables",
     href: "/payables",
     icon: CreditCard,
+  },
+  {
+    title: "Cash Flow",
+    href: "/cash-flow",
+    icon: Wallet,
   },
   {
     title: "Profitability",
