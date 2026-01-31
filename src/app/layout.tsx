@@ -5,7 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
 
 export const metadata: Metadata = {
-  title: "DeHyl Financials",
+  title: "DeHyl",
   description: "Financial dashboard for DeHyl Constructors Corp",
 };
 
