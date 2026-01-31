@@ -43,8 +43,10 @@ export function formatDateShort(date: Date | string): string {
   }).format(d);
 }
 
-export function getDaysOverdue(dueDate: Date | string): number {
+export function getDaysOverdue(dueDate: Date | string | null | undefined): number {
+  if (!dueDate) return 0;
   const due = typeof dueDate === "string" ? new Date(dueDate) : dueDate;
+  if (isNaN(due.getTime())) return 0; // Invalid date
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   due.setHours(0, 0, 0, 0);
@@ -52,8 +54,10 @@ export function getDaysOverdue(dueDate: Date | string): number {
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
-export function getDaysUntilDue(dueDate: Date | string): number {
+export function getDaysUntilDue(dueDate: Date | string | null | undefined): number {
+  if (!dueDate) return 0;
   const due = typeof dueDate === "string" ? new Date(dueDate) : dueDate;
+  if (isNaN(due.getTime())) return 0; // Invalid date
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   due.setHours(0, 0, 0, 0);
@@ -61,15 +65,17 @@ export function getDaysUntilDue(dueDate: Date | string): number {
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
-export function getInvoiceStatus(balance: number, dueDate: Date | string): "paid" | "overdue" | "sent" {
+export function getInvoiceStatus(balance: number, dueDate: Date | string | null | undefined): "paid" | "overdue" | "sent" {
   if (balance === 0) return "paid";
+  if (!dueDate) return "sent"; // No due date = treat as sent
   const daysOverdue = getDaysOverdue(dueDate);
   if (daysOverdue > 0) return "overdue";
   return "sent";
 }
 
-export function getBillStatus(balance: number, dueDate: Date | string): "paid" | "overdue" | "open" {
+export function getBillStatus(balance: number, dueDate: Date | string | null | undefined): "paid" | "overdue" | "open" {
   if (balance === 0) return "paid";
+  if (!dueDate) return "open"; // No due date = treat as open
   const daysOverdue = getDaysOverdue(dueDate);
   if (daysOverdue > 0) return "overdue";
   return "open";
