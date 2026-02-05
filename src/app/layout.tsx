@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "DeHyl",
@@ -37,6 +38,7 @@ export default function RootLayout({
               {children}
             </main>
           </div>
+          <Toaster richColors position="top-right" />
         </ThemeProvider>
       </body>
     </html>

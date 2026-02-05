@@ -92,13 +92,13 @@ export async function GET(
     clientName: inv.client_name,
     amount: Number(inv.amount),
     balance: Number(inv.balance),
-    issueDate: new Date(inv.issue_date),
-    dueDate: new Date(inv.due_date),
+    issueDate: inv.issue_date ? new Date(inv.issue_date) : new Date(),
+    dueDate: inv.due_date ? new Date(inv.due_date) : new Date(),
     status: inv.status as "draft" | "sent" | "paid" | "overdue",
     projectId: inv.project_id,
     matchConfidence: inv.match_confidence as "high" | "medium" | "low" | null,
     memo: inv.memo,
-    syncedAt: new Date(inv.synced_at),
+    syncedAt: inv.synced_at ? new Date(inv.synced_at) : new Date(),
   }));
 
   // Transform bills
@@ -108,12 +108,12 @@ export async function GET(
     vendorName: bill.vendor_name,
     amount: Number(bill.amount),
     balance: Number(bill.balance),
-    billDate: new Date(bill.bill_date),
-    dueDate: new Date(bill.due_date),
+    billDate: bill.bill_date ? new Date(bill.bill_date) : new Date(),
+    dueDate: bill.due_date ? new Date(bill.due_date) : new Date(),
     status: bill.status as "open" | "paid" | "overdue",
     projectId: bill.project_id,
     memo: bill.memo,
-    syncedAt: new Date(bill.synced_at),
+    syncedAt: bill.synced_at ? new Date(bill.synced_at) : new Date(),
   }));
 
   return NextResponse.json({

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { mockClientMappings } from "@/lib/mock-data";
 
 /**
  * GET /api/client-mappings
@@ -16,11 +15,14 @@ export async function GET() {
       .order("code");
 
     if (error) {
-      console.log("Using mock data:", error);
-      return NextResponse.json({ mappings: mockClientMappings });
+      console.error("Error fetching client mappings:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch client mappings" },
+        { status: 500 }
+      );
     }
 
-    const mappings = data.map((m) => ({
+    const mappings = (data || []).map((m) => ({
       id: m.id,
       code: m.code,
       qbCustomerName: m.qb_customer_name,
@@ -31,7 +33,10 @@ export async function GET() {
     return NextResponse.json({ mappings });
   } catch (error) {
     console.error("Error fetching client mappings:", error);
-    return NextResponse.json({ mappings: mockClientMappings });
+    return NextResponse.json(
+      { error: "Failed to fetch client mappings" },
+      { status: 500 }
+    );
   }
 }
 

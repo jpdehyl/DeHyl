@@ -30,7 +30,6 @@ import {
 import { ProjectSelectorDialog } from "@/components/shared/project-selector-dialog";
 import { cn, formatCurrency, formatDate, getDaysOverdue, getDaysUntilDue } from "@/lib/utils";
 import type { Bill, ProjectWithTotals } from "@/types";
-import { mockProjects } from "@/lib/mock-data";
 
 interface BillsTableProps {
   bills: Bill[];
@@ -43,7 +42,7 @@ type SortDirection = "asc" | "desc";
 
 export function BillsTable({
   bills,
-  projects = mockProjects,
+  projects = [],
   onAssign,
 }: BillsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");

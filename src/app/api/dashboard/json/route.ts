@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
 
   // Build recent invoices table data
   const recentInvoices = (invoices || [])
-    .sort((a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime())
+    .sort((a, b) => new Date(b.due_date || 0).getTime() - new Date(a.due_date || 0).getTime())
     .slice(0, 5)
     .map((inv) => ({
       number: inv.invoice_number || "-",
