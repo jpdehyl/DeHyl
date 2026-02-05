@@ -99,7 +99,7 @@ QUICKBOOKS_CLIENT_SECRET=your_client_secret
 QUICKBOOKS_REDIRECT_URI=http://localhost:3000/api/quickbooks/callback
 
 # For production, use:
-# QUICKBOOKS_REDIRECT_URI=https://dehyl-financials.vercel.app/api/quickbooks/callback
+# QUICKBOOKS_REDIRECT_URI=https://dehyl.vercel.app/api/quickbooks/callback
 ```
 
 ## Database Schema for Tokens

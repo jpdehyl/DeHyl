@@ -116,7 +116,7 @@ GOOGLE_CLIENT_SECRET=your_client_secret
 GOOGLE_REDIRECT_URI=http://localhost:3000/api/google/callback
 
 # For production:
-# GOOGLE_REDIRECT_URI=https://dehyl-financials.vercel.app/api/google/callback
+# GOOGLE_REDIRECT_URI=https://dehyl.vercel.app/api/google/callback
 ```
 
 ## Database Schema Addition

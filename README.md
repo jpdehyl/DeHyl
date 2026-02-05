@@ -33,7 +33,7 @@ A financial dashboard for DeHyl Constructors Corp to track project profitability
 ```bash
 # Clone the repository
 git clone [repo-url]
-cd dehyl-financials
+cd dehyl
 
 # Install dependencies
 npm install
