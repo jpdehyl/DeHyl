@@ -4,7 +4,6 @@ import {
   enrichInvoicesWithSuggestions,
   getAutoAssignableInvoices,
 } from "@/lib/matching/invoice-matcher";
-import { mockInvoices, mockProjects, mockClientMappings } from "@/lib/mock-data";
 
 /**
  * GET /api/matching
@@ -14,74 +13,66 @@ export async function GET() {
   try {
     const supabase = await createClient();
 
-    // Try to fetch from Supabase, fall back to mock data
-    let invoices = mockInvoices;
-    let projects = mockProjects;
-    let clientMappings = mockClientMappings;
+    const [invoicesRes, projectsRes, mappingsRes] = await Promise.all([
+      supabase.from("invoices").select("*").gt("balance", 0),
+      supabase.from("projects").select("*"),
+      supabase.from("client_mappings").select("*"),
+    ]);
 
-    try {
-      const [invoicesRes, projectsRes, mappingsRes] = await Promise.all([
-        supabase.from("invoices").select("*").gt("balance", 0),
-        supabase.from("projects").select("*"),
-        supabase.from("client_mappings").select("*"),
-      ]);
-
-      if (invoicesRes.data?.length) {
-        invoices = invoicesRes.data.map((inv) => ({
-          ...inv,
-          id: inv.id,
-          qbId: inv.qb_id,
-          invoiceNumber: inv.invoice_number,
-          clientName: inv.client_name,
-          amount: Number(inv.amount),
-          balance: Number(inv.balance),
-          issueDate: new Date(inv.issue_date),
-          dueDate: new Date(inv.due_date),
-          status: inv.status,
-          projectId: inv.project_id,
-          matchConfidence: inv.match_confidence,
-          memo: inv.memo,
-          syncedAt: new Date(inv.synced_at),
-        }));
-      }
-
-      if (projectsRes.data?.length) {
-        projects = projectsRes.data.map((p) => ({
-          ...p,
-          id: p.id,
-          driveId: p.drive_id,
-          code: p.code,
-          clientCode: p.client_code,
-          clientName: p.client_name,
-          description: p.description,
-          status: p.status,
-          estimateAmount: p.estimate_amount ? Number(p.estimate_amount) : null,
-          estimateDriveId: p.estimate_drive_id,
-          hasPBS: p.has_pbs,
-          createdAt: new Date(p.created_at),
-          updatedAt: new Date(p.updated_at),
-          totals: {
-            invoiced: 0,
-            paid: 0,
-            outstanding: 0,
-            costs: 0,
-            profit: 0,
-          },
-        }));
-      }
-
-      if (mappingsRes.data?.length) {
-        clientMappings = mappingsRes.data.map((m) => ({
-          id: m.id,
-          code: m.code,
-          qbCustomerName: m.qb_customer_name,
-          displayName: m.display_name,
-          aliases: m.aliases || [],
-        }));
-      }
-    } catch (dbError) {
-      console.log("Using mock data, Supabase not available:", dbError);
+    if (invoicesRes.error) {
+      return NextResponse.json(
+        { error: "Failed to fetch invoices" },
+        { status: 500 }
+      );
     }
+
+    const invoices = (invoicesRes.data || []).map((inv) => ({
+      ...inv,
+      id: inv.id,
+      qbId: inv.qb_id,
+      invoiceNumber: inv.invoice_number,
+      clientName: inv.client_name,
+      amount: Number(inv.amount),
+      balance: Number(inv.balance),
+      issueDate: inv.issue_date ? new Date(inv.issue_date) : new Date(),
+      dueDate: inv.due_date ? new Date(inv.due_date) : new Date(),
+      status: inv.status,
+      projectId: inv.project_id,
+      matchConfidence: inv.match_confidence,
+      memo: inv.memo,
+      syncedAt: inv.synced_at ? new Date(inv.synced_at) : new Date(),
+    }));
+
+    const projects = (projectsRes.data || []).map((p) => ({
+      ...p,
+      id: p.id,
+      driveId: p.drive_id,
+      code: p.code,
+      clientCode: p.client_code,
+      clientName: p.client_name,
+      description: p.description,
+      status: p.status,
+      estimateAmount: p.estimate_amount ? Number(p.estimate_amount) : null,
+      estimateDriveId: p.estimate_drive_id,
+      hasPBS: p.has_pbs,
+      createdAt: new Date(p.created_at),
+      updatedAt: new Date(p.updated_at),
+      totals: {
+        invoiced: 0,
+        paid: 0,
+        outstanding: 0,
+        costs: 0,
+        profit: 0,
+      },
+    }));
+
+    const clientMappings = (mappingsRes.data || []).map((m) => ({
+      id: m.id,
+      code: m.code,
+      qbCustomerName: m.qb_customer_name,
+      displayName: m.display_name,
+      aliases: m.aliases || [],
+    }));
 
     // Enrich invoices with suggestions
     const enrichedInvoices = enrichInvoicesWithSuggestions(invoices, {

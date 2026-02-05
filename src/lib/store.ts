@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import type { ConnectionStatus, ProjectWithTotals } from "@/types";
-import { mockConnectionStatus } from "./mock-data";
 
 interface AppState {
   // Connection status
@@ -29,7 +28,18 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set) => ({
   // Connection status
-  connections: mockConnectionStatus,
+  connections: {
+    quickbooks: {
+      connected: false,
+      companyName: undefined,
+      lastSyncedAt: undefined,
+    },
+    googleDrive: {
+      connected: false,
+      email: undefined,
+      lastSyncedAt: undefined,
+    },
+  },
   setConnections: (connections) => set({ connections }),
 
   // Sync status

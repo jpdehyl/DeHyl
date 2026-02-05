@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import Link from "next/link";
 
 interface Project {
@@ -99,7 +100,7 @@ export default function NewDailyLogPage() {
     e.preventDefault();
 
     if (!projectId || !logDate) {
-      alert("Please select a project and date");
+      toast.warning("Please select a project and date");
       return;
     }
 
@@ -131,11 +132,11 @@ export default function NewDailyLogPage() {
         router.push("/daily-logs");
       } else {
         const data = await res.json();
-        alert(data.error || "Failed to create daily log");
+        toast.error(data.error || "Failed to create daily log");
       }
     } catch (error) {
       console.error("Error creating daily log:", error);
-      alert("Failed to create daily log");
+      toast.error("Failed to create daily log");
     } finally {
       setSaving(false);
     }

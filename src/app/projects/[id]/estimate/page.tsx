@@ -1,8 +1,9 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { notFound, useRouter } from "next/navigation";
-import { ArrowLeft, Save, FileDown, Send, Upload } from "lucide-react";
+import { ArrowLeft, Save, FileDown, Send, Upload, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,11 +23,6 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineItemEditor, EstimateSummary } from "@/components/estimates";
-import { getProjectById } from "@/lib/mock-data";
-import {
-  getEstimateWithLineItemsByProjectId,
-  createEmptyEstimate,
-} from "@/lib/mock-estimates";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { EstimateLineItem, EstimateStatus } from "@/types";
@@ -35,29 +31,95 @@ interface EstimatePageProps {
   params: Promise<{ id: string }>;
 }
 
+interface ProjectData {
+  id: string;
+  code: string;
+  clientName: string;
+  description: string;
+  totals: {
+    invoiced: number;
+  };
+}
+
+interface EstimateData {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string | null;
+  status: EstimateStatus;
+  lineItems: EstimateLineItem[];
+}
+
 export default function EstimatePage({ params }: EstimatePageProps) {
   const { id } = use(params);
   const router = useRouter();
   const { sidebarOpen } = useAppStore();
 
-  const project = getProjectById(id);
+  const [project, setProject] = useState<ProjectData | null>(null);
+  const [estimateId, setEstimateId] = useState<string | null>(null);
+  const [estimateName, setEstimateName] = useState("");
+  const [estimateDescription, setEstimateDescription] = useState("");
+  const [estimateStatus, setEstimateStatus] = useState<EstimateStatus>("draft");
+  const [lineItems, setLineItems] = useState<EstimateLineItem[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Load project and estimate data from API
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // Fetch project details
+        const projectRes = await fetch(`/api/projects/${id}`);
+        if (!projectRes.ok) {
+          setProject(null);
+          setIsLoading(false);
+          return;
+        }
+        const projectData = await projectRes.json();
+        setProject(projectData.project);
+
+        // Fetch existing estimate for this project
+        const estimateRes = await fetch(`/api/estimates?projectId=${id}`);
+        if (estimateRes.ok) {
+          const estimateData = await estimateRes.json();
+          if (estimateData.estimates && estimateData.estimates.length > 0) {
+            const est = estimateData.estimates[0];
+            setEstimateId(est.id);
+            setEstimateName(est.name || "");
+            setEstimateDescription(est.description || "");
+            setEstimateStatus(est.status || "draft");
+            setLineItems(est.lineItems || []);
+          } else {
+            // No existing estimate - set defaults from project
+            setEstimateName(`${projectData.project.code} - ${projectData.project.description}`);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading estimate data:", error);
+        toast.error("Failed to load estimate data");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className={cn("transition-all duration-300", sidebarOpen ? "md:ml-0" : "md:ml-0")}>
+        <Header title="Estimate" description="Loading..." />
+        <div className="p-4 md:p-6 flex justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   if (!project) {
     notFound();
   }
 
-  // Get existing estimate or create empty one
-  const existingEstimate = getEstimateWithLineItemsByProjectId(id);
-  const initialEstimate = existingEstimate || createEmptyEstimate(id, `${project.code} - ${project.description}`);
-
-  const [estimateName, setEstimateName] = useState(initialEstimate.name);
-  const [estimateDescription, setEstimateDescription] = useState(initialEstimate.description || "");
-  const [estimateStatus, setEstimateStatus] = useState<EstimateStatus>(initialEstimate.status);
-  const [lineItems, setLineItems] = useState<EstimateLineItem[]>(initialEstimate.lineItems);
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-
-  // Calculate actual invoiced amount from project
   const actualInvoiced = project.totals.invoiced;
 
   const handleLineItemsChange = (newLineItems: EstimateLineItem[]) => {
@@ -67,21 +129,96 @@ export default function EstimatePage({ params }: EstimatePageProps) {
 
   const handleSave = async () => {
     setIsSaving(true);
-    // TODO: Save to API/database
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    setHasChanges(false);
+    try {
+      if (estimateId) {
+        // Update existing estimate
+        const res = await fetch(`/api/estimates/${estimateId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: estimateName,
+            description: estimateDescription,
+            status: estimateStatus,
+            lineItems: lineItems.map((item, index) => ({
+              category: item.category,
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit,
+              unitPrice: item.unitPrice,
+              sortOrder: item.sortOrder ?? index,
+              notes: item.notes || null,
+            })),
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          toast.error(data.error || "Failed to update estimate");
+          return;
+        }
+        toast.success("Estimate saved");
+      } else {
+        // Create new estimate
+        const res = await fetch("/api/estimates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: id,
+            name: estimateName,
+            description: estimateDescription,
+            status: estimateStatus,
+            lineItems: lineItems.map((item, index) => ({
+              category: item.category,
+              description: item.description,
+              quantity: item.quantity,
+              unit: item.unit,
+              unitPrice: item.unitPrice,
+              sortOrder: item.sortOrder ?? index,
+              notes: item.notes || null,
+            })),
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          toast.error(data.error || "Failed to create estimate");
+          return;
+        }
+        const data = await res.json();
+        setEstimateId(data.estimate?.id || null);
+        toast.success("Estimate created");
+      }
+      setHasChanges(false);
+    } catch (error) {
+      console.error("Error saving estimate:", error);
+      toast.error("Failed to save estimate");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleExportPDF = () => {
-    // TODO: Generate and download PDF
-    alert("PDF export coming soon!");
+    toast.info("PDF export is not yet available");
   };
 
-  const handleSendToClient = () => {
-    // TODO: Send estimate to client
+  const handleSendToClient = async () => {
     setEstimateStatus("sent");
     setHasChanges(true);
+    if (estimateId) {
+      try {
+        const res = await fetch(`/api/estimates/${estimateId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "sent" }),
+        });
+        if (res.ok) {
+          toast.success("Estimate marked as sent");
+          setHasChanges(false);
+        } else {
+          toast.error("Failed to update estimate status");
+        }
+      } catch {
+        toast.error("Failed to update estimate status");
+      }
+    }
   };
 
   return (

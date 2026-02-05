@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import type { ClientMapping } from "@/types";
 import { FileSpreadsheet, FolderSync, Gavel, Link2, FileCheck } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { ConnectionCard, ClientMappings } from "@/components/settings";
-import { mockClientMappings } from "@/lib/mock-data";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export default function SettingsPage() {
   const [bidsLastSyncedAt, setBidsLastSyncedAt] = useState<Date | null>(null);
   const [estimatesLastSyncedAt, setEstimatesLastSyncedAt] = useState<Date | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [clientMappings, setClientMappings] = useState<ClientMapping[]>([]);
 
   // Fetch connection status from API
   const fetchConnections = useCallback(async () => {
@@ -77,17 +78,43 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const fetchClientMappings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/client-mappings");
+      if (res.ok) {
+        const data = await res.json();
+        setClientMappings(data.mappings || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch client mappings:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchConnections();
     fetchBidsLastSync();
-  }, [fetchConnections, fetchBidsLastSync]);
+    fetchClientMappings();
+  }, [fetchConnections, fetchBidsLastSync, fetchClientMappings]);
 
   const handleConnectQuickBooks = () => {
     window.location.href = "/api/auth/quickbooks";
   };
 
   const handleDisconnectQuickBooks = async () => {
-    // TODO: Implement token deletion endpoint
+    try {
+      const res = await fetch("/api/auth/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "quickbooks" }),
+      });
+      if (!res.ok) {
+        setSyncMessage("Failed to disconnect QuickBooks");
+        return;
+      }
+    } catch {
+      setSyncMessage("Failed to disconnect QuickBooks");
+      return;
+    }
     setConnections({
       ...connections,
       quickbooks: {
@@ -96,6 +123,7 @@ export default function SettingsPage() {
         lastSyncedAt: undefined,
       },
     });
+    setSyncMessage("QuickBooks disconnected");
   };
 
   const handleSyncQuickBooks = async () => {
@@ -129,7 +157,20 @@ export default function SettingsPage() {
   };
 
   const handleDisconnectGoogleDrive = async () => {
-    // TODO: Implement token deletion endpoint
+    try {
+      const res = await fetch("/api/auth/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "google_drive" }),
+      });
+      if (!res.ok) {
+        setSyncMessage("Failed to disconnect Google Drive");
+        return;
+      }
+    } catch {
+      setSyncMessage("Failed to disconnect Google Drive");
+      return;
+    }
     setConnections({
       ...connections,
       googleDrive: {
@@ -138,6 +179,7 @@ export default function SettingsPage() {
         lastSyncedAt: undefined,
       },
     });
+    setSyncMessage("Google Drive disconnected");
   };
 
   const handleSyncGoogleDrive = async () => {
@@ -402,7 +444,7 @@ export default function SettingsPage() {
         {/* Client Mappings */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Client Code Mappings</h2>
-          <ClientMappings mappings={mockClientMappings} />
+          <ClientMappings mappings={clientMappings} onUpdate={fetchClientMappings} />
         </div>
       </div>
     </div>

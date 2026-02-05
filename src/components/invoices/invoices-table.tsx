@@ -38,7 +38,6 @@ import {
 import { ProjectSelectorDialog } from "@/components/shared/project-selector-dialog";
 import { cn, formatCurrency, formatDate, getDaysOverdue } from "@/lib/utils";
 import type { InvoiceWithSuggestions, ProjectWithTotals } from "@/types";
-import { mockProjects } from "@/lib/mock-data";
 
 interface InvoicesTableProps {
   invoices: InvoiceWithSuggestions[];
@@ -51,7 +50,7 @@ type SortDirection = "asc" | "desc";
 
 export function InvoicesTable({
   invoices,
-  projects = mockProjects,
+  projects = [],
   onAssign,
 }: InvoicesTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
