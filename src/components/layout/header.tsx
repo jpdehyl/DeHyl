@@ -3,6 +3,7 @@
 import { RefreshCw, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
+import { UserMenu } from "./user-menu";
 import { useAppStore } from "@/lib/store";
 import { cn, getRelativeTime } from "@/lib/utils";
 
@@ -86,6 +87,9 @@ export function Header({ title, description, action }: HeaderProps) {
 
         {/* Theme toggle */}
         <ThemeToggle />
+
+        {/* User menu */}
+        <UserMenu />
       </div>
     </header>
   );

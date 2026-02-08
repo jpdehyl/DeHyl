@@ -487,17 +487,41 @@ export interface PortalManagementResponse {
 // -------------------------------------------
 // Project Photos
 // -------------------------------------------
+export type PhotoCategory = 
+  | 'before'
+  | 'during'
+  | 'after'
+  | 'safety'
+  | 'damage'
+  | 'equipment'
+  | 'documentation'
+  | 'other';
+
 export interface ProjectPhoto {
   id: string;
   projectId: string;
-  driveFileId: string;
+  // Google Drive fields (legacy)
+  driveFileId: string | null;
   driveFolderId: string | null;
+  // Supabase Storage fields
+  storagePath: string | null;
+  storageUrl: string | null;
+  // Common fields
   filename: string;
   originalFilename: string | null;
   fileSize: number | null;
   mimeType: string | null;
   thumbnailUrl: string | null;
   photoDate: Date | null;
+  // New fields
+  category: PhotoCategory;
+  latitude: number | null;
+  longitude: number | null;
+  notes: string | null;
+  dailyLogId: string | null;
+  area: string | null;
+  uploadedBy: string | null;
+  // Timestamps
   uploadedAt: Date;
   createdAt: Date;
 }
@@ -505,7 +529,8 @@ export interface ProjectPhoto {
 export interface PhotoUploadResponse {
   uploaded: {
     id: string;
-    driveFileId: string;
+    storagePath: string;
+    storageUrl: string;
     filename: string;
     thumbnailUrl: string | null;
   }[];
@@ -519,5 +544,6 @@ export interface PhotoListResponse {
   photos: ProjectPhoto[];
   total: number;
   hasMore: boolean;
-  dates: string[];  // Available date folders
+  dates: string[];
+  categories: PhotoCategory[];
 }

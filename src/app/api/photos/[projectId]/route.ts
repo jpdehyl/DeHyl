@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { ProjectPhoto, PhotoListResponse } from "@/types";
+import type { ProjectPhoto, PhotoListResponse, PhotoCategory } from "@/types";
 
 export async function GET(
   request: NextRequest,
@@ -66,14 +66,27 @@ export async function GET(
       photoDate: photo.photo_date ? new Date(photo.photo_date) : null,
       uploadedAt: new Date(photo.uploaded_at),
       createdAt: new Date(photo.created_at),
-    }));
+      storagePath: photo.storage_path ?? null,
+      storageUrl: photo.storage_url ?? null,
+      category: photo.category ?? null,
+      latitude: photo.latitude ?? null,
+      longitude: photo.longitude ?? null,
+      width: photo.width ?? null,
+      height: photo.height ?? null,
+      tags: photo.tags ?? [],
+      notes: photo.notes ?? null,
+      dailyLogId: photo.daily_log_id ?? null,
+      area: photo.area ?? null,
+      uploadedBy: photo.uploaded_by ?? null,
+    } as unknown as ProjectPhoto));
 
-    const response: PhotoListResponse = {
+    const response = {
       photos: transformedPhotos,
       total: count || 0,
       hasMore: (count || 0) > offset + limit,
       dates,
-    };
+      categories: [] as PhotoCategory[],
+    } satisfies PhotoListResponse;
 
     return NextResponse.json(response);
   } catch (error) {

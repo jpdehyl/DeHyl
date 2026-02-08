@@ -14,6 +14,9 @@ import {
   TrendingUp,
   ClipboardList,
   Wallet,
+  ImageIcon,
+  ShieldCheck,
+  Users,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -42,6 +45,16 @@ const navItems = [
     title: "Daily Logs",
     href: "/daily-logs",
     icon: ClipboardList,
+  },
+  {
+    title: "Photos",
+    href: "/photos",
+    icon: ImageIcon,
+  },
+  {
+    title: "Safety",
+    href: "/safety",
+    icon: ShieldCheck,
   },
   {
     title: "Bids",

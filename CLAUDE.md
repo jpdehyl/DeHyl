@@ -25,7 +25,7 @@
 ## Project Structure
 
 ```
-dehyl-financials/
+dehyl/
 ├── CLAUDE.md              # This file - AI context
 ├── docs/
 │   └── PRD.md             # Full product requirements
