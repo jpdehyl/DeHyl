@@ -477,8 +477,8 @@ export default async function DashboardPage() {
                   key={project.id}
                   className="p-4 border rounded-lg hover:bg-accent transition-colors"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-sm font-bold">{project.code}</span>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-mono text-sm font-bold">{project.code} — {project.description}</span>
                     <div
                       className={`w-3 h-3 rounded-full ${
                         project.status === 'green' ? 'bg-green-500' :
