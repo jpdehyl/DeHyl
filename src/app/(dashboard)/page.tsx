@@ -14,6 +14,7 @@ import {
   CreditCard,
   AlertCircle,
 } from "lucide-react";
+import Link from "next/link";
 
 // Fetch weather from wttr.in
 async function getWeather(): Promise<string> {
@@ -192,6 +193,30 @@ async function getARAging(supabase: any) {
   return aging;
 }
 
+// Get unassigned timesheet hours
+async function getUnassignedHours(supabase: any) {
+  try {
+    const { data: unassignedStats } = await supabase
+      .from('timesheets')
+      .select('hours_worked')
+      .eq('status', 'unassigned');
+
+    const totalEntries = unassignedStats?.length || 0;
+    const totalHours = unassignedStats?.reduce((sum: number, entry: any) => sum + Number(entry.hours_worked), 0) || 0;
+
+    return {
+      totalEntries,
+      totalHours
+    };
+  } catch (error) {
+    // If timesheets table doesn't exist yet, return zeros
+    return {
+      totalEntries: 0,
+      totalHours: 0
+    };
+  }
+}
+
 // Get cash position
 async function getCashPosition(supabase: any) {
   const [receivablesResult, payablesResult, lastSyncResult] = await Promise.all([
@@ -234,6 +259,7 @@ export default async function DashboardPage() {
     activeProjects,
     arAging,
     cashPosition,
+    unassignedHours,
   ] = await Promise.all([
     getWeather(),
     getTodayActiveProjects(supabase),
@@ -241,6 +267,7 @@ export default async function DashboardPage() {
     getActiveProjects(supabase),
     getARAging(supabase),
     getCashPosition(supabase),
+    getUnassignedHours(supabase),
   ]);
 
   const today = new Date().toLocaleDateString('en-CA', {
@@ -297,18 +324,40 @@ export default async function DashboardPage() {
         </Card>
 
         {/* 2. NEEDS ATTENTION Section */}
-        {(overdueData.urgent.length > 0 || overdueData.warning.length > 0) && (
+        {(overdueData.urgent.length > 0 || overdueData.warning.length > 0 || unassignedHours.totalEntries > 0) && (
           <Card className="border-orange-200 dark:border-orange-800">
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-2 text-orange-900 dark:text-orange-100">
                 <AlertTriangle className="h-5 w-5" />
                 Needs Attention
                 <Badge variant="destructive" className="ml-2">
-                  {overdueData.urgent.length + overdueData.warning.length}
+                  {overdueData.urgent.length + overdueData.warning.length + (unassignedHours.totalEntries > 0 ? 1 : 0)}
                 </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* Unassigned Hours Alert */}
+              {unassignedHours.totalEntries > 0 && (
+                <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-5 w-5 text-red-600" />
+                    <div>
+                      <div className="font-semibold text-red-900 dark:text-red-100">
+                        ⏰ {unassignedHours.totalHours.toFixed(1)} hours unassigned
+                      </div>
+                      <div className="text-sm text-red-700 dark:text-red-300">
+                        {unassignedHours.totalEntries} timesheet {unassignedHours.totalEntries === 1 ? 'entry needs' : 'entries need'} project assignment
+                      </div>
+                    </div>
+                  </div>
+                  <Link 
+                    href="/timesheets?status=unassigned" 
+                    className="inline-flex items-center px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition-colors"
+                  >
+                    Assign Now
+                  </Link>
+                </div>
+              )}
               {/* Urgent (>60 days) */}
               {overdueData.urgent.map((client: any) => (
                 <div

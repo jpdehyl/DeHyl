@@ -17,6 +17,7 @@ import {
   ImageIcon,
   ShieldCheck,
   Users,
+  Clock,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -45,6 +46,11 @@ const navItems = [
     title: "Daily Logs",
     href: "/daily-logs",
     icon: ClipboardList,
+  },
+  {
+    title: "Timesheets",
+    href: "/timesheets",
+    icon: Clock,
   },
   {
     title: "Photos",

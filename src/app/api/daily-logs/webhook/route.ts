@@ -122,6 +122,34 @@ export async function POST(request: NextRequest) {
       );
 
       await supabase.from("daily_log_crew").insert(crewInserts);
+
+      // Also create timesheet entries
+      const timesheetInserts = crew
+        .filter((c: any) => c.hoursWorked && c.hoursWorked > 0)
+        .map((c: {
+          workerName: string;
+          hoursWorked: number;
+          taskDescription?: string;
+        }) => ({
+          worker_name: c.workerName,
+          work_date: date,
+          hours_worked: c.hoursWorked,
+          project_id: resolvedProjectId,
+          description: c.taskDescription || workSummary || "Work logged via daily log",
+          status: resolvedProjectId ? "assigned" : "unassigned",
+          source: "daily_log",
+          submitted_by: "whatsapp"
+        }));
+
+      if (timesheetInserts.length > 0) {
+        // Use upsert to handle duplicates (same worker, date, project)
+        await supabase
+          .from("timesheets")
+          .upsert(timesheetInserts, { 
+            onConflict: "worker_name,work_date,project_id",
+            ignoreDuplicates: true 
+          });
+      }
     }
 
     // Add photo references
