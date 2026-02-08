@@ -5,8 +5,7 @@ const isPublicRoute = createRouteMatcher([
   "/login(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/portal(.*)", // Client portal uses access codes
-  "/api/portal(.*)", // Portal API
+  "/api/portal(.*)", // Portal API (access code validated internally)
   "/api/webhook(.*)", // Webhooks
   "/api/daily-logs/webhook(.*)", // Robbie daily log webhook
 ]);

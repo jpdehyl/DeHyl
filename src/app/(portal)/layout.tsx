@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata: Metadata = {
   title: "DeHyl — Project Portal",
@@ -11,8 +12,10 @@ export default function PortalLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-h-screen bg-background">
-      {children}
-    </div>
+    <ClerkProvider>
+      <div className="min-h-screen bg-background">
+        {children}
+      </div>
+    </ClerkProvider>
   );
 }
