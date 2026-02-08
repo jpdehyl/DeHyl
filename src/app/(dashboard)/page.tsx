@@ -1,366 +1,527 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
-import { cn, formatCurrency, getDaysOverdue, getRelativeTime } from "@/lib/utils";
-import { useAppStore } from "@/lib/store";
-import type { DashboardData, ProjectWithTotals } from "@/types";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency, getDaysOverdue, getRelativeTime } from "@/lib/utils";
 import {
-  DollarSign,
-  CreditCard,
-  TrendingUp,
-  FolderOpen,
+  CalendarDays,
+  Users,
+  CloudRain,
   AlertTriangle,
   Clock,
+  TrendingUp,
+  DollarSign,
+  CreditCard,
+  AlertCircle,
 } from "lucide-react";
 
-interface InvoiceData {
-  id: string;
-  invoice_number: string;
-  client_name: string;
-  balance: number;
-  due_date: string;
+// Fetch weather from wttr.in
+async function getWeather(): Promise<string> {
+  try {
+    const response = await fetch("http://wttr.in/Vancouver?format=%C+%t", {
+      next: { revalidate: 3600 }, // Cache for 1 hour
+    });
+    return await response.text();
+  } catch {
+    return "Weather unavailable";
+  }
 }
 
-interface ReceivablesResponse {
-  invoices: InvoiceData[];
-  totals: { outstanding: number; overdue: number; dueThisWeek: number };
-  lastSyncedAt: string | null;
+// Get current active projects with crew deployed today
+async function getTodayActiveProjects(supabase: any): Promise<number> {
+  const today = new Date().toISOString().split('T')[0];
+  
+  const { data } = await supabase
+    .from('daily_logs')
+    .select('project_id')
+    .eq('log_date', today)
+    .gte('total_hours', 0.1); // Projects with crew time logged
+  
+  return new Set(data?.map((log: any) => log.project_id) || []).size;
 }
 
-export default function DashboardPage() {
-  const { sidebarOpen } = useAppStore();
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [projects, setProjects] = useState<ProjectWithTotals[]>([]);
-  const [invoices, setInvoices] = useState<InvoiceData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+// Get overdue invoices grouped by client
+async function getOverdueInvoicesGrouped(supabase: any) {
+  const { data: invoices } = await supabase
+    .from('invoices')
+    .select('client_name, balance, due_date')
+    .gt('balance', 0)
+    .order('due_date', { ascending: true });
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        const [dashboardRes, projectsRes, receivablesRes] = await Promise.all([
-          fetch("/api/dashboard"),
-          fetch("/api/projects"),
-          fetch("/api/receivables"),
-        ]);
+  if (!invoices) return { urgent: [], warning: [] };
 
-        if (!dashboardRes.ok) throw new Error("Failed to fetch dashboard data");
+  const clientMap = new Map();
+  const today = new Date();
 
-        const dashboard = await dashboardRes.json();
-        const projectsData = projectsRes.ok ? await projectsRes.json() : { projects: [] };
-        const receivables: ReceivablesResponse = receivablesRes.ok
-          ? await receivablesRes.json()
-          : { invoices: [], totals: { outstanding: 0, overdue: 0, dueThisWeek: 0 }, lastSyncedAt: null };
+  invoices.forEach((invoice: any) => {
+    const daysOverdue = getDaysOverdue(invoice.due_date);
+    if (daysOverdue <= 0) return;
 
-        setDashboardData(dashboard);
-        setProjects(projectsData.projects || []);
-        setInvoices(receivables.invoices || []);
-      } catch (err) {
-        console.error("Error fetching dashboard data:", err);
-        setError(err instanceof Error ? err.message : "Failed to load data");
-      } finally {
-        setLoading(false);
-      }
+    const client = invoice.client_name;
+    if (!clientMap.has(client)) {
+      clientMap.set(client, {
+        name: client,
+        totalOverdue: 0,
+        invoiceCount: 0,
+        oldestDays: 0,
+        maxDays: 0,
+      });
     }
-    fetchData();
-  }, []);
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="transition-all duration-300">
-        <Header title="Dashboard" description="Financial overview" />
-        <div className="p-4 md:p-6 space-y-6">
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-28 rounded-lg" />
-            ))}
-          </div>
-          <Skeleton className="h-64 rounded-lg" />
-          <Skeleton className="h-48 rounded-lg" />
-        </div>
-      </div>
-    );
-  }
+    const clientData = clientMap.get(client);
+    clientData.totalOverdue += Number(invoice.balance);
+    clientData.invoiceCount += 1;
+    clientData.maxDays = Math.max(clientData.maxDays, daysOverdue);
+    if (clientData.oldestDays === 0 || daysOverdue > clientData.oldestDays) {
+      clientData.oldestDays = daysOverdue;
+    }
+  });
 
-  // Error state
-  if (error) {
-    return (
-      <div className="transition-all duration-300">
-        <Header title="Dashboard" description="Financial overview" />
-        <div className="p-4 md:p-6">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-            <p className="mt-2 text-sm text-red-600 dark:text-red-300">
-              Make sure QuickBooks is connected in Settings, then sync your data.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const clientsArray = Array.from(clientMap.values());
+  const urgent = clientsArray.filter(c => c.maxDays > 60).sort((a, b) => b.totalOverdue - a.totalOverdue);
+  const warning = clientsArray.filter(c => c.maxDays > 30 && c.maxDays <= 60).sort((a, b) => b.totalOverdue - a.totalOverdue);
 
-  const { kpis, lastSyncedAt } = dashboardData || {
-    kpis: {
-      totalReceivables: 0,
-      totalPayables: 0,
-      netPosition: 0,
-      activeProjects: 0,
-      overdueInvoices: 0,
-      overdueAmount: 0,
-      billsDueThisWeek: 0,
-      billsDueAmount: 0,
-    },
-    lastSyncedAt: null,
+  return { urgent, warning };
+}
+
+// Get active projects with latest updates
+async function getActiveProjects(supabase: any) {
+  const { data: projects } = await supabase
+    .from('projects')
+    .select(`
+      id,
+      code,
+      client_name,
+      client_code,
+      description,
+      updated_at
+    `)
+    .eq('status', 'active')
+    .order('updated_at', { ascending: false });
+
+  if (!projects) return [];
+
+  // Get latest activity for each project
+  const projectsWithActivity = await Promise.all(
+    projects.map(async (project: any) => {
+      const { data: activity } = await supabase
+        .from('project_activities')
+        .select('title, activity_date, description')
+        .eq('project_id', project.id)
+        .order('activity_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      const { data: dailyLog } = await supabase
+        .from('daily_logs')
+        .select('log_date, work_summary')
+        .eq('project_id', project.id)
+        .order('log_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      let lastUpdate = project.updated_at;
+      let updateSnippet = "No recent updates";
+      let updateType = "project";
+
+      // Use most recent between activity and daily log
+      if (activity && (!dailyLog || new Date(activity.activity_date) > new Date(dailyLog.log_date))) {
+        lastUpdate = activity.activity_date;
+        updateSnippet = activity.title || activity.description || "Activity logged";
+        updateType = "activity";
+      } else if (dailyLog) {
+        lastUpdate = dailyLog.log_date + "T23:59:59Z";
+        updateSnippet = dailyLog.work_summary || "Work logged";
+        updateType = "work";
+      }
+
+      // Calculate status based on recency
+      const daysSinceUpdate = Math.floor((Date.now() - new Date(lastUpdate).getTime()) / (1000 * 60 * 60 * 24));
+      let status = "green";
+      if (daysSinceUpdate > 7) status = "red";
+      else if (daysSinceUpdate > 3) status = "yellow";
+
+      return {
+        ...project,
+        lastUpdate,
+        updateSnippet: updateSnippet.substring(0, 80) + (updateSnippet.length > 80 ? "..." : ""),
+        daysSinceUpdate,
+        status,
+        updateType,
+      };
+    })
+  );
+
+  return projectsWithActivity;
+}
+
+// Get AR aging data
+async function getARAging(supabase: any) {
+  const { data: invoices } = await supabase
+    .from('invoices')
+    .select('balance, due_date')
+    .gt('balance', 0);
+
+  if (!invoices) return {
+    current: 0,
+    days1to30: 0,
+    days31to60: 0,
+    days61to90: 0,
+    days90plus: 0,
   };
 
-  // QB disconnected check: >48 hours since last sync
-  const isQBStale = (() => {
-    if (!lastSyncedAt) return true;
-    const syncDate = new Date(lastSyncedAt);
-    const now = new Date();
-    const hoursSinceSync = (now.getTime() - syncDate.getTime()) / (1000 * 60 * 60);
-    return hoursSinceSync > 48;
-  })();
+  const aging = {
+    current: 0,
+    days1to30: 0,
+    days31to60: 0,
+    days61to90: 0,
+    days90plus: 0,
+  };
 
-  const daysSinceSync = (() => {
-    if (!lastSyncedAt) return null;
-    const syncDate = new Date(lastSyncedAt);
-    const now = new Date();
-    return Math.floor((now.getTime() - syncDate.getTime()) / (1000 * 60 * 60 * 24));
-  })();
+  invoices.forEach((invoice: any) => {
+    const daysOverdue = getDaysOverdue(invoice.due_date);
+    const amount = Number(invoice.balance);
 
-  // Overdue invoices sorted by amount desc
-  const overdueInvoices = invoices
-    .filter((inv) => getDaysOverdue(inv.due_date) > 0)
-    .sort((a, b) => Number(b.balance) - Number(a.balance));
+    if (daysOverdue <= 0) aging.current += amount;
+    else if (daysOverdue <= 30) aging.days1to30 += amount;
+    else if (daysOverdue <= 60) aging.days31to60 += amount;
+    else if (daysOverdue <= 90) aging.days61to90 += amount;
+    else aging.days90plus += amount;
+  });
 
-  // Active projects with financials
-  const activeProjects = projects.filter((p) => p.status === "active");
+  return aging;
+}
+
+// Get cash position
+async function getCashPosition(supabase: any) {
+  const [receivablesResult, payablesResult, lastSyncResult] = await Promise.all([
+    supabase.from('invoices').select('balance').gt('balance', 0),
+    supabase.from('bills').select('balance').gt('balance', 0),
+    supabase
+      .from('sync_log')
+      .select('completed_at')
+      .eq('source', 'quickbooks')
+      .eq('status', 'completed')
+      .order('completed_at', { ascending: false })
+      .limit(1)
+      .single(),
+  ]);
+
+  const totalReceivables = receivablesResult.data?.reduce((sum: number, inv: any) => sum + Number(inv.balance), 0) || 0;
+  const totalPayables = payablesResult.data?.reduce((sum: number, bill: any) => sum + Number(bill.balance), 0) || 0;
+  const netPosition = totalReceivables - totalPayables;
+
+  const lastSyncedAt = lastSyncResult.data?.completed_at;
+  const isStale = !lastSyncedAt || (Date.now() - new Date(lastSyncedAt).getTime()) > (7 * 24 * 60 * 60 * 1000);
+
+  return {
+    totalReceivables,
+    totalPayables,
+    netPosition,
+    lastSyncedAt,
+    isStale,
+  };
+}
+
+export default async function DashboardPage() {
+  const supabase = await createClient();
+
+  // Fetch all data in parallel
+  const [
+    weather,
+    activeProjectsToday,
+    overdueData,
+    activeProjects,
+    arAging,
+    cashPosition,
+  ] = await Promise.all([
+    getWeather(),
+    getTodayActiveProjects(supabase),
+    getOverdueInvoicesGrouped(supabase),
+    getActiveProjects(supabase),
+    getARAging(supabase),
+    getCashPosition(supabase),
+  ]);
+
+  const today = new Date().toLocaleDateString('en-CA', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 
   return (
-    <div className={cn("transition-all duration-300")}>
-      <Header title="Dashboard" description="Financial overview for DeHyl Constructors" />
+    <div className="min-h-screen bg-background">
+      <Header title="Command Center" description="CEO Dashboard for DeHyl Demolition" />
 
-      <div className="p-4 md:p-6 space-y-6">
-        {/* QB Disconnected Banner */}
-        {isQBStale && (
-          <div className="rounded-lg border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/50 p-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-red-800 dark:text-red-200">
-                {lastSyncedAt
-                  ? `⚠️ QuickBooks data is ${daysSinceSync} day${daysSinceSync !== 1 ? "s" : ""} old.`
-                  : "⚠️ QuickBooks has never been synced."}
-              </p>
-              <p className="text-sm text-red-600 dark:text-red-300 mt-1">
-                Reconnect in Settings to get fresh data.
-              </p>
+      <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+        {/* 1. TODAY Section */}
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xl flex items-center gap-2 text-blue-900 dark:text-blue-100">
+              <CalendarDays className="h-5 w-5" />
+              Today
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-lg font-medium text-blue-800 dark:text-blue-200">
+              {today}
             </div>
-          </div>
-        )}
-
-        {/* KPI Cards */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Receivables
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(kpis.totalReceivables)}</div>
-              {kpis.overdueInvoices > 0 && (
-                <p className="text-xs text-red-500 mt-1">
-                  {kpis.overdueInvoices} overdue ({formatCurrency(kpis.overdueAmount)})
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Payables
-              </CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(kpis.totalPayables)}</div>
-              {kpis.billsDueThisWeek > 0 && (
-                <p className="text-xs text-orange-500 mt-1">
-                  {kpis.billsDueThisWeek} due this week ({formatCurrency(kpis.billsDueAmount)})
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Net Position
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className={cn(
-                "text-2xl font-bold",
-                kpis.netPosition >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-              )}>
-                {formatCurrency(kpis.netPosition)}
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 p-3 bg-white/60 dark:bg-gray-900/40 rounded-lg">
+                <Users className="h-8 w-8 text-green-600" />
+                <div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {activeProjectsToday}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    Active projects with crew deployed
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Receivables − Payables
-              </p>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Active Projects
-              </CardTitle>
-              <FolderOpen className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{kpis.activeProjects}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {projects.filter((p) => p.status === "closed").length} closed
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Overdue Invoices Table */}
-        {overdueInvoices.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-red-500" />
-                Overdue Invoices
-                <Badge variant="destructive" className="ml-2">{overdueInvoices.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="text-right">Days Overdue</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {overdueInvoices.slice(0, 10).map((inv) => {
-                    const days = getDaysOverdue(inv.due_date);
-                    return (
-                      <TableRow key={inv.id}>
-                        <TableCell className="font-medium">
-                          {inv.invoice_number || "—"}
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate">
-                          {inv.client_name}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(Number(inv.balance))}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant={days > 60 ? "destructive" : days > 30 ? "default" : "secondary"}>
-                            {days}d
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              {overdueInvoices.length > 10 && (
-                <p className="text-sm text-muted-foreground mt-3 text-center">
-                  + {overdueInvoices.length - 10} more overdue invoices →{" "}
-                  <a href="/receivables" className="underline hover:text-foreground">
-                    View all
-                  </a>
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Active Projects */}
-        {activeProjects.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <FolderOpen className="h-5 w-5 text-blue-500" />
-                Active Projects
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {activeProjects.slice(0, 9).map((proj) => (
-                  <a
-                    key={proj.id}
-                    href={`/projects/${proj.id}`}
-                    className="block rounded-lg border p-4 hover:bg-accent transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-mono text-sm font-bold">{proj.code}</span>
-                      {proj.totals.outstanding > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          {formatCurrency(proj.totals.outstanding)} owing
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {proj.clientName || proj.clientCode}
-                    </p>
-                    <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                      <span>Invoiced: {formatCurrency(proj.totals.invoiced)}</span>
-                    </div>
-                  </a>
-                ))}
+              <div className="flex items-center gap-3 p-3 bg-white/60 dark:bg-gray-900/40 rounded-lg">
+                <CloudRain className="h-8 w-8 text-blue-600" />
+                <div>
+                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {weather.trim()}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    Vancouver weather
+                  </div>
+                </div>
               </div>
-              {activeProjects.length > 9 && (
-                <p className="text-sm text-muted-foreground mt-3 text-center">
-                  + {activeProjects.length - 9} more →{" "}
-                  <a href="/projects" className="underline hover:text-foreground">
-                    View all
-                  </a>
-                </p>
-              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 2. NEEDS ATTENTION Section */}
+        {(overdueData.urgent.length > 0 || overdueData.warning.length > 0) && (
+          <Card className="border-orange-200 dark:border-orange-800">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2 text-orange-900 dark:text-orange-100">
+                <AlertTriangle className="h-5 w-5" />
+                Needs Attention
+                <Badge variant="destructive" className="ml-2">
+                  {overdueData.urgent.length + overdueData.warning.length}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Urgent (>60 days) */}
+              {overdueData.urgent.map((client: any) => (
+                <div
+                  key={client.name}
+                  className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-600" />
+                    <div>
+                      <div className="font-semibold text-red-900 dark:text-red-100">
+                        {client.name}
+                      </div>
+                      <div className="text-sm text-red-700 dark:text-red-300">
+                        {formatCurrency(client.totalOverdue)} overdue ({client.invoiceCount} invoice{client.invoiceCount !== 1 ? 's' : ''}, oldest: {client.oldestDays} days)
+                      </div>
+                    </div>
+                  </div>
+                  <Badge variant="destructive">URGENT</Badge>
+                </div>
+              ))}
+
+              {/* Warning (30-60 days) */}
+              {overdueData.warning.map((client: any) => (
+                <div
+                  key={client.name}
+                  className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-5 w-5 text-yellow-600" />
+                    <div>
+                      <div className="font-semibold text-yellow-900 dark:text-yellow-100">
+                        {client.name}
+                      </div>
+                      <div className="text-sm text-yellow-700 dark:text-yellow-300">
+                        {formatCurrency(client.totalOverdue)} overdue ({client.invoiceCount} invoice{client.invoiceCount !== 1 ? 's' : ''}, oldest: {client.oldestDays} days)
+                      </div>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
+                    WARNING
+                  </Badge>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}
 
-        {/* Sync Status Footer */}
-        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-2">
-          <Clock className="h-3 w-3" />
-          <span>
-            {lastSyncedAt
-              ? `Last synced ${getRelativeTime(lastSyncedAt)}`
-              : "Never synced — connect QuickBooks in Settings"}
-          </span>
-        </div>
+        {/* 3. ACTIVE PROJECTS Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              Active Projects
+              <Badge variant="outline" className="ml-2">
+                {activeProjects.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+              {activeProjects.slice(0, 9).map((project: any) => (
+                <div
+                  key={project.id}
+                  className="p-4 border rounded-lg hover:bg-accent transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono text-sm font-bold">{project.code}</span>
+                    <div
+                      className={`w-3 h-3 rounded-full ${
+                        project.status === 'green' ? 'bg-green-500' :
+                        project.status === 'yellow' ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}
+                      title={`Last update: ${project.daysSinceUpdate} days ago`}
+                    />
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground mb-2">
+                    {project.client_name || project.client_code}
+                  </div>
+                  
+                  <div className="text-sm">
+                    <div className="font-medium text-foreground mb-1">
+                      {getRelativeTime(project.lastUpdate)}
+                    </div>
+                    <div className="text-muted-foreground line-clamp-2">
+                      {project.updateSnippet}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {activeProjects.length > 9 && (
+              <div className="text-center mt-4">
+                <p className="text-sm text-muted-foreground">
+                  + {activeProjects.length - 9} more projects
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 4. COLLECTIONS Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-600" />
+              Collections (AR Aging)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                  <div className="text-lg font-bold text-green-700 dark:text-green-300">
+                    {formatCurrency(arAging.current)}
+                  </div>
+                  <div className="text-xs text-green-600 dark:text-green-400">
+                    Current (not due)
+                  </div>
+                </div>
+                
+                <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                  <div className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                    {formatCurrency(arAging.days1to30)}
+                  </div>
+                  <div className="text-xs text-blue-600 dark:text-blue-400">
+                    1-30 days
+                  </div>
+                </div>
+                
+                <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg">
+                  <div className="text-lg font-bold text-yellow-700 dark:text-yellow-300">
+                    {formatCurrency(arAging.days31to60)}
+                  </div>
+                  <div className="text-xs text-yellow-600 dark:text-yellow-400">
+                    31-60 days
+                  </div>
+                </div>
+                
+                <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+                  <div className="text-lg font-bold text-orange-700 dark:text-orange-300">
+                    {formatCurrency(arAging.days61to90)}
+                  </div>
+                  <div className="text-xs text-orange-600 dark:text-orange-400">
+                    61-90 days
+                  </div>
+                </div>
+                
+                <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                  <div className="text-lg font-bold text-red-700 dark:text-red-300">
+                    {formatCurrency(arAging.days90plus)}
+                  </div>
+                  <div className="text-xs text-red-600 dark:text-red-400">
+                    90+ days
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 5. CASH POSITION Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-green-600" />
+              Cash Position
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {cashPosition.isStale && (
+              <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-sm font-medium">
+                    ⚠️ QuickBooks data is stale ({cashPosition.lastSyncedAt ? `last sync: ${getRelativeTime(cashPosition.lastSyncedAt)}` : 'never synced'})
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="text-center p-4 border rounded-lg">
+                <DollarSign className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-green-700 dark:text-green-300">
+                  {formatCurrency(cashPosition.totalReceivables)}
+                </div>
+                <div className="text-sm text-muted-foreground">Total Receivables</div>
+              </div>
+              
+              <div className="text-center p-4 border rounded-lg">
+                <CreditCard className="h-8 w-8 text-red-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-red-700 dark:text-red-300">
+                  {formatCurrency(cashPosition.totalPayables)}
+                </div>
+                <div className="text-sm text-muted-foreground">Total Payables</div>
+              </div>
+              
+              <div className="text-center p-4 border rounded-lg bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-950/20 dark:to-green-950/20">
+                <TrendingUp className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                <div className={`text-2xl font-bold ${
+                  cashPosition.netPosition >= 0 
+                    ? 'text-green-700 dark:text-green-300' 
+                    : 'text-red-700 dark:text-red-300'
+                }`}>
+                  {formatCurrency(cashPosition.netPosition)}
+                </div>
+                <div className="text-sm text-muted-foreground">Net Position</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
