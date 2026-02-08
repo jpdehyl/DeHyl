@@ -103,7 +103,18 @@ export async function GET(request: NextRequest) {
       });
 
       if (mappedBills.length > 0) {
-        await supabase.from("bills").upsert(mappedBills, { onConflict: "qb_id" });
+        // Get bills with manual_override to exclude from sync
+        const { data: overriddenBills } = await supabase
+          .from("bills")
+          .select("qb_id")
+          .eq("manual_override", true);
+
+        const overriddenQbIds = new Set((overriddenBills || []).map((b: { qb_id: string }) => b.qb_id));
+        const billsToSync = mappedBills.filter((b) => !overriddenQbIds.has(b.qb_id));
+
+        if (billsToSync.length > 0) {
+          await supabase.from("bills").upsert(billsToSync, { onConflict: "qb_id" });
+        }
       }
 
       // Log sync

@@ -129,12 +129,25 @@ export async function POST() {
     });
 
     if (mappedBills.length > 0) {
-      const { error: billError } = await supabase
+      // Get bills with manual_override to exclude from sync
+      const { data: overriddenBills } = await supabase
         .from("bills")
-        .upsert(mappedBills, { onConflict: "qb_id" });
+        .select("qb_id")
+        .eq("manual_override", true);
 
-      if (billError) {
-        console.error("Failed to upsert bills:", billError);
+      const overriddenQbIds = new Set((overriddenBills || []).map((b) => b.qb_id));
+
+      // Filter out manually overridden bills before upserting
+      const billsToSync = mappedBills.filter((b) => !overriddenQbIds.has(b.qb_id));
+
+      if (billsToSync.length > 0) {
+        const { error: billError } = await supabase
+          .from("bills")
+          .upsert(billsToSync, { onConflict: "qb_id" });
+
+        if (billError) {
+          console.error("Failed to upsert bills:", billError);
+        }
       }
     }
 
