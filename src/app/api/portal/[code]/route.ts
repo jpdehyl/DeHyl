@@ -88,6 +88,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   // Fetch timeline if enabled
   if (settings.showTimeline) {
+    // Fetch from project_updates (manual updates + Robbie-created)
+    const { data: updates } = await supabase
+      .from("project_updates")
+      .select("*")
+      .eq("project_id", project.id)
+      .eq("visible_to_client", true)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    // Also fetch safe activities from project_activities
     const { data: activities } = await supabase
       .from("project_activities")
       .select("*")
@@ -95,46 +105,53 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .order("activity_date", { ascending: false })
       .limit(20);
 
-    // Filter activities - only show safe types (no financial data)
-    const safeActivityTypes = ["note", "status_change", "file"];
-    const filteredActivities: PortalActivity[] = (activities || [])
-      .filter((act) => {
-        // Only include safe activity types
-        if (!safeActivityTypes.includes(act.activity_type)) {
-          // For email, we sanitize it (just show "Email received")
-          if (act.activity_type === "email") {
-            return true;
-          }
-          // Exclude invoices and bills (financial data)
-          if (act.activity_type === "invoice" || act.activity_type === "bill") {
-            return settings.showFinancials;
-          }
-          return false;
-        }
-        return true;
-      })
-      .map((act) => {
-        // Sanitize email activities
-        if (act.activity_type === "email") {
-          return {
-            id: act.id,
-            type: "note" as const,
-            title: `Email from ${act.email_from || "client"}`,
-            description: undefined, // Don't expose email content
-            date: new Date(act.activity_date),
-          };
-        }
+    // Merge both sources into timeline
+    const timelineItems: PortalActivity[] = [];
 
-        return {
+    // Add project_updates
+    (updates || []).forEach((upd) => {
+      timelineItems.push({
+        id: upd.id,
+        type: (upd.update_type || "note") as PortalActivity["type"],
+        title: upd.title || "Update",
+        description: upd.content || undefined,
+        date: new Date(upd.created_at),
+      });
+    });
+
+    // Add safe activities (emails sanitized, no financials)
+    const safeActivityTypes = ["note", "status_change", "file"];
+    (activities || []).forEach((act) => {
+      if (safeActivityTypes.includes(act.activity_type)) {
+        timelineItems.push({
           id: act.id,
           type: act.activity_type as PortalActivity["type"],
           title: act.title,
           description: act.description || undefined,
           date: new Date(act.activity_date),
-        };
-      });
+        });
+      } else if (act.activity_type === "email") {
+        timelineItems.push({
+          id: act.id,
+          type: "note" as const,
+          title: `Email from ${act.email_from || "client"}`,
+          description: undefined,
+          date: new Date(act.activity_date),
+        });
+      } else if ((act.activity_type === "invoice" || act.activity_type === "bill") && settings.showFinancials) {
+        timelineItems.push({
+          id: act.id,
+          type: act.activity_type as PortalActivity["type"],
+          title: act.title,
+          description: act.description || undefined,
+          date: new Date(act.activity_date),
+        });
+      }
+    });
 
-    response.timeline = filteredActivities;
+    // Sort by date descending and limit
+    timelineItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    response.timeline = timelineItems.slice(0, 30);
   }
 
   // Fetch photos if enabled
