@@ -13,11 +13,11 @@ export default function PortalLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <ClerkProvider>
-      <div className="min-h-screen bg-background">
-        {children}
-      </div>
-    </ClerkProvider>
-  );
+  const shell = <div className="min-h-screen bg-background">{children}</div>;
+
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    return shell;
+  }
+
+  return <ClerkProvider>{shell}</ClerkProvider>;
 }
