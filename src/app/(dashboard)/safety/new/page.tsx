@@ -7,18 +7,20 @@ import { Button } from "@/components/ui/button";
 import { ChecklistForm } from "@/components/safety/checklist-form";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
+interface TemplateItem {
+  id: string;
+  question: string;
+  type: "checkbox" | "text" | "textarea" | "select" | "multiselect" | "date" | "time";
+  required: boolean;
+  options?: string[];
+}
+
 interface Template {
   id: string;
   name: string;
   type: string;
   description: string;
-  items: Array<{
-    id: string;
-    question: string;
-    type: string;
-    required: boolean;
-    options?: string[];
-  }>;
+  items: TemplateItem[];
 }
 
 interface Project {

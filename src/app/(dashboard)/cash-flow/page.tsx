@@ -252,7 +252,7 @@ export default function CashFlowPage() {
                     tickLine={false}
                   />
                   <Tooltip
-                    formatter={(value: number) => formatCurrency(value)}
+                    formatter={(value) => formatCurrency(value as number)}
                     contentStyle={{
                       backgroundColor: "hsl(var(--background))",
                       border: "1px solid hsl(var(--border))",
