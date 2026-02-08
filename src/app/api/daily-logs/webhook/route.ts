@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       internalNotes,
       crew = [],
       photos = [],
+      expenses = [],
       source = "whatsapp",
       // Also create a project_update for the portal timeline
       createTimelineEntry = true,
@@ -164,6 +165,29 @@ export async function POST(request: NextRequest) {
       );
 
       await supabase.from("daily_log_photos").insert(photoInserts);
+    }
+
+    // Add expense entries
+    if (expenses.length > 0 && dailyLog) {
+      const expenseInserts = expenses.map(
+        (e: { 
+          description: string;
+          amount: number;
+          category?: string;
+          vendor?: string;
+        }) => ({
+          description: e.description,
+          amount: e.amount,
+          expense_date: date,
+          category: e.category || 'other',
+          project_id: resolvedProjectId,
+          vendor: e.vendor,
+          status: 'unlinked', // Needs invoice association later
+          submitted_by: 'whatsapp'
+        })
+      );
+
+      await supabase.from("expenses").insert(expenseInserts);
     }
 
     // Create a project_update for the client portal timeline

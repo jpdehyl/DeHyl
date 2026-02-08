@@ -13,6 +13,7 @@ import {
   DollarSign,
   CreditCard,
   AlertCircle,
+  Receipt,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -217,6 +218,34 @@ async function getUnassignedHours(supabase: any) {
   }
 }
 
+// Get unbilled project expenses (excludes Shop internal expenses)
+async function getUnbilledExpenses(supabase: any) {
+  try {
+    // Shop project ID for internal overhead (should not be counted as unbilled)
+    const SHOP_PROJECT_ID = '8649bd23-6948-4ec6-8dc8-4c58c8a25016';
+    
+    const { data: unbilledStats } = await supabase
+      .from('expenses')
+      .select('amount')
+      .eq('status', 'unlinked')
+      .neq('project_id', SHOP_PROJECT_ID); // Exclude Shop project (internal overhead)
+
+    const totalEntries = unbilledStats?.length || 0;
+    const totalAmount = unbilledStats?.reduce((sum: number, entry: any) => sum + Number(entry.amount), 0) || 0;
+
+    return {
+      totalEntries,
+      totalAmount
+    };
+  } catch (error) {
+    // If expenses table doesn't exist yet, return zeros
+    return {
+      totalEntries: 0,
+      totalAmount: 0
+    };
+  }
+}
+
 // Get cash position
 async function getCashPosition(supabase: any) {
   const [receivablesResult, payablesResult, lastSyncResult] = await Promise.all([
@@ -260,6 +289,7 @@ export default async function DashboardPage() {
     arAging,
     cashPosition,
     unassignedHours,
+    unbilledExpenses,
   ] = await Promise.all([
     getWeather(),
     getTodayActiveProjects(supabase),
@@ -268,6 +298,7 @@ export default async function DashboardPage() {
     getARAging(supabase),
     getCashPosition(supabase),
     getUnassignedHours(supabase),
+    getUnbilledExpenses(supabase),
   ]);
 
   const today = new Date().toLocaleDateString('en-CA', {
@@ -324,14 +355,14 @@ export default async function DashboardPage() {
         </Card>
 
         {/* 2. NEEDS ATTENTION Section */}
-        {(overdueData.urgent.length > 0 || overdueData.warning.length > 0 || unassignedHours.totalEntries > 0) && (
+        {(overdueData.urgent.length > 0 || overdueData.warning.length > 0 || unassignedHours.totalEntries > 0 || unbilledExpenses.totalEntries > 0) && (
           <Card className="border-orange-200 dark:border-orange-800">
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-2 text-orange-900 dark:text-orange-100">
                 <AlertTriangle className="h-5 w-5" />
                 Needs Attention
                 <Badge variant="destructive" className="ml-2">
-                  {overdueData.urgent.length + overdueData.warning.length + (unassignedHours.totalEntries > 0 ? 1 : 0)}
+                  {overdueData.urgent.length + overdueData.warning.length + (unassignedHours.totalEntries > 0 ? 1 : 0) + (unbilledExpenses.totalEntries > 0 ? 1 : 0)}
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -355,6 +386,29 @@ export default async function DashboardPage() {
                     className="inline-flex items-center px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition-colors"
                   >
                     Assign Now
+                  </Link>
+                </div>
+              )}
+
+              {/* Unbilled Expenses Alert */}
+              {unbilledExpenses.totalEntries > 0 && (
+                <div className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Receipt className="h-5 w-5 text-amber-600" />
+                    <div>
+                      <div className="font-semibold text-amber-900 dark:text-amber-100">
+                        💰 ${unbilledExpenses.totalAmount.toLocaleString()} unbilled expenses
+                      </div>
+                      <div className="text-sm text-amber-700 dark:text-amber-300">
+                        {unbilledExpenses.totalEntries} {unbilledExpenses.totalEntries === 1 ? 'expense needs' : 'expenses need'} invoice linking
+                      </div>
+                    </div>
+                  </div>
+                  <Link 
+                    href="/expenses?status=unlinked" 
+                    className="inline-flex items-center px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-sm font-medium transition-colors"
+                  >
+                    Link to Invoices
                   </Link>
                 </div>
               )}

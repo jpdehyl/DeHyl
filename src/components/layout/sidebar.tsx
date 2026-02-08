@@ -53,6 +53,11 @@ const navItems = [
     icon: Clock,
   },
   {
+    title: "Expenses",
+    href: "/expenses",
+    icon: Receipt,
+  },
+  {
     title: "Photos",
     href: "/photos",
     icon: ImageIcon,
