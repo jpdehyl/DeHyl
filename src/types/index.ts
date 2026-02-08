@@ -318,7 +318,7 @@ export interface PayablesResponse {
 // -------------------------------------------
 // Project Activities / Timeline
 // -------------------------------------------
-export type ActivityType = 'email' | 'invoice' | 'bill' | 'bid' | 'note' | 'status_change' | 'file';
+export type ActivityType = 'email' | 'invoice' | 'bill' | 'bid' | 'note' | 'status_change' | 'file' | 'daily_log' | 'cost' | 'safety_checklist';
 
 export interface Activity {
   id: string;

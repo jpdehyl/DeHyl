@@ -47,15 +47,19 @@ const ACTIVITY_CONFIG: Record<
   note: { icon: "📝", label: "Note", color: "bg-gray-500/10 text-gray-600 dark:text-gray-400" },
   status_change: { icon: "🔄", label: "Status", color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" },
   file: { icon: "📁", label: "File", color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" },
+  daily_log: { icon: "📓", label: "Daily Log", color: "bg-teal-500/10 text-teal-600 dark:text-teal-400" },
+  cost: { icon: "💸", label: "Cost", color: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
+  safety_checklist: { icon: "🦺", label: "Safety", color: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400" },
 };
 
 const FILTER_OPTIONS: { value: ActivityType | "all"; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "email", label: "Emails" },
   { value: "invoice", label: "Invoices" },
   { value: "bill", label: "Bills" },
+  { value: "cost", label: "Costs" },
+  { value: "daily_log", label: "Daily Logs" },
+  { value: "safety_checklist", label: "Safety" },
   { value: "note", label: "Notes" },
-  { value: "bid", label: "Bids" },
 ];
 
 function TimelineItem({
@@ -177,6 +181,50 @@ function TimelineItem({
                   <span className={getStatusColor()}>
                     {metadata.status}
                   </span>
+                </p>
+              ) : null}
+              {/* Daily log details */}
+              {typeof metadata?.weather === "string" && metadata.weather ? (
+                <p className="text-sm">
+                  <span className="font-medium">Weather:</span>{" "}
+                  {metadata.weather}
+                </p>
+              ) : null}
+              {typeof metadata?.totalHours === "number" ? (
+                <p className="text-sm">
+                  <span className="font-medium">Hours:</span>{" "}
+                  {metadata.totalHours}h
+                </p>
+              ) : null}
+              {Array.isArray(metadata?.areasWorked) && (metadata.areasWorked as string[]).length > 0 ? (
+                <p className="text-sm">
+                  <span className="font-medium">Areas:</span>{" "}
+                  {(metadata.areasWorked as string[]).join(", ")}
+                </p>
+              ) : null}
+              {/* Cost details */}
+              {typeof metadata?.category === "string" && metadata.category ? (
+                <p className="text-sm">
+                  <span className="font-medium">Category:</span>{" "}
+                  {metadata.category}
+                </p>
+              ) : null}
+              {/* Safety checklist details */}
+              {typeof metadata?.templateName === "string" && metadata.templateName ? (
+                <p className="text-sm">
+                  <span className="font-medium">Template:</span>{" "}
+                  {metadata.templateName}
+                </p>
+              ) : null}
+              {typeof metadata?.shift === "string" && metadata.shift ? (
+                <p className="text-sm">
+                  <span className="font-medium">Shift:</span>{" "}
+                  {metadata.shift}
+                </p>
+              ) : null}
+              {typeof metadata?.notes === "string" && metadata.notes ? (
+                <p className="text-sm text-muted-foreground italic">
+                  {metadata.notes}
                 </p>
               ) : null}
             </div>

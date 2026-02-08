@@ -91,8 +91,9 @@ interface UnbilledStats {
 }
 
 const EXPENSE_CATEGORIES = [
+  'labor',
   'materials',
-  'equipment', 
+  'equipment',
   'disposal',
   'fuel',
   'rental',
