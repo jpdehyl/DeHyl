@@ -37,14 +37,18 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Support source filter: ?source=quickbooks or ?source=google_drive
+  const { searchParams } = new URL(request.url);
+  const sourceFilter = searchParams.get("source");
+
   const supabase = await createClient();
   const results = {
     quickbooks: { success: false, invoices: 0, bills: 0, error: null as string | null },
     googleDrive: { success: false, projects: 0, error: null as string | null },
   };
 
-  // Sync QuickBooks
-  try {
+  // Sync QuickBooks (skip if source filter is set to google_drive only)
+  if (!sourceFilter || sourceFilter === "quickbooks") try {
     const { data: qbToken } = await supabase
       .from("oauth_tokens")
       .select("*")
@@ -137,8 +141,8 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Sync Google Drive Projects
-  try {
+  // Sync Google Drive Projects (skip if source filter is set to quickbooks only)
+  if (!sourceFilter || sourceFilter === "google_drive") try {
     const { data: googleToken } = await supabase
       .from("oauth_tokens")
       .select("*")
