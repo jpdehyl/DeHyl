@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { searchParams } = new URL(request.url);
-    
+
     // Extract filters from search params
     const status = searchParams.get('status');
     const category = searchParams.get('category');
@@ -14,9 +14,9 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('end_date');
     const limit = searchParams.get('limit');
 
-    // Build query with filters
+    // Build query against project_costs (consolidated from expenses)
     let query = supabase
-      .from('expenses')
+      .from('project_costs')
       .select(`
         *,
         projects:project_id (
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
           status
         )
       `)
-      .order('expense_date', { ascending: false })
+      .order('cost_date', { ascending: false })
       .order('created_at', { ascending: false });
 
     // Apply filters
@@ -45,10 +45,10 @@ export async function GET(request: NextRequest) {
       query = query.eq('project_id', projectId);
     }
     if (startDate) {
-      query = query.gte('expense_date', startDate);
+      query = query.gte('cost_date', startDate);
     }
     if (endDate) {
-      query = query.lte('expense_date', endDate);
+      query = query.lte('cost_date', endDate);
     }
     if (limit) {
       query = query.limit(parseInt(limit));
@@ -64,7 +64,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ expenses });
+    // Map cost_date to expense_date for backwards compatibility with the UI
+    const mapped = (expenses || []).map((e) => ({
+      ...e,
+      expense_date: e.cost_date,
+    }));
+
+    return NextResponse.json({ expenses: mapped });
   } catch (error) {
     console.error('Expenses API error:', error);
     return NextResponse.json(
@@ -78,11 +84,12 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const body = await request.json();
-    
+
     const {
       description,
       amount,
       expense_date,
+      cost_date,
       category = 'materials',
       project_id,
       vendor,
@@ -91,10 +98,12 @@ export async function POST(request: NextRequest) {
       submitted_by
     } = body;
 
+    const dateValue = cost_date || expense_date;
+
     // Validation
-    if (!description || !amount || !expense_date || !project_id) {
+    if (!description || !amount || !dateValue || !project_id) {
       return NextResponse.json(
-        { error: 'Missing required fields: description, amount, expense_date, project_id' },
+        { error: 'Missing required fields: description, amount, date, project_id' },
         { status: 400 }
       );
     }
@@ -107,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate category
-    const validCategories = ['materials', 'equipment', 'disposal', 'fuel', 'rental', 'subcontractor', 'permits', 'other'];
+    const validCategories = ['labor', 'materials', 'equipment', 'disposal', 'fuel', 'rental', 'subcontractor', 'permits', 'other'];
     if (!validCategories.includes(category)) {
       return NextResponse.json(
         { error: `Invalid category. Must be one of: ${validCategories.join(', ')}` },
@@ -129,20 +138,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create expense entry
+    // Create cost entry in project_costs
     const { data: expense, error } = await supabase
-      .from('expenses')
+      .from('project_costs')
       .insert({
         description,
         amount: parseFloat(amount),
-        expense_date,
+        cost_date: dateValue,
         category,
         project_id,
         vendor,
         receipt_url,
         notes,
         submitted_by,
-        status: 'unlinked' // All new expenses start as unlinked
+        status: 'unlinked'
       })
       .select(`
         *,
@@ -168,7 +177,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ expense }, { status: 201 });
+    // Map for backwards compat
+    const mapped = { ...expense, expense_date: expense.cost_date };
+
+    return NextResponse.json({ expense: mapped }, { status: 201 });
   } catch (error) {
     console.error('Expenses POST error:', error);
     return NextResponse.json(

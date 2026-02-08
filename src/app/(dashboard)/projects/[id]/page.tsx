@@ -8,6 +8,7 @@ import {
   ProjectFinancials,
   ProjectInvoices,
   ProjectBills,
+  ProjectCosts,
   ProjectTimeline,
   ProjectPhotos,
   PortalSettings,
@@ -165,11 +166,12 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         {/* Financial Summary */}
         <ProjectFinancials project={project} />
 
-        {/* Tabs for Timeline, Photos, and Financials */}
+        {/* Tabs for Timeline, Photos, Costs, and Financials */}
         <Tabs defaultValue="timeline" className="w-full">
-          <TabsList className="grid w-full max-w-lg grid-cols-3">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="photos">Photos</TabsTrigger>
+            <TabsTrigger value="costs">Costs</TabsTrigger>
             <TabsTrigger value="financials">Invoices & Bills</TabsTrigger>
           </TabsList>
 
@@ -181,6 +183,11 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           {/* Photos Tab */}
           <TabsContent value="photos" className="mt-6">
             <ProjectPhotos projectId={id} />
+          </TabsContent>
+
+          {/* Costs Tab */}
+          <TabsContent value="costs" className="mt-6">
+            <ProjectCosts projectId={id} />
           </TabsContent>
 
           {/* Invoices and Bills Tab */}

@@ -14,6 +14,7 @@ export async function PATCH(
       description,
       amount,
       expense_date,
+      cost_date,
       category,
       project_id,
       invoice_id,
@@ -24,7 +25,7 @@ export async function PATCH(
     } = body;
 
     // Build update object
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString()
     };
 
@@ -38,9 +39,11 @@ export async function PATCH(
       }
       updateData.amount = parseFloat(amount);
     }
-    if (expense_date !== undefined) updateData.expense_date = expense_date;
+    // Accept both expense_date and cost_date
+    const dateValue = cost_date || expense_date;
+    if (dateValue !== undefined) updateData.cost_date = dateValue;
     if (category !== undefined) {
-      const validCategories = ['materials', 'equipment', 'disposal', 'fuel', 'rental', 'subcontractor', 'permits', 'other'];
+      const validCategories = ['labor', 'materials', 'equipment', 'disposal', 'fuel', 'rental', 'subcontractor', 'permits', 'other'];
       if (!validCategories.includes(category)) {
         return NextResponse.json(
           { error: `Invalid category. Must be one of: ${validCategories.join(', ')}` },
@@ -72,7 +75,7 @@ export async function PATCH(
     if (notes !== undefined) updateData.notes = notes;
 
     const { data: expense, error } = await supabase
-      .from('expenses')
+      .from('project_costs')
       .update(updateData)
       .eq('id', id)
       .select(`
@@ -93,21 +96,23 @@ export async function PATCH(
 
     if (error) {
       console.error('Error updating expense:', error);
-      
+
       if (error.code === 'PGRST116') {
         return NextResponse.json(
           { error: 'Expense not found' },
           { status: 404 }
         );
       }
-      
+
       return NextResponse.json(
         { error: 'Failed to update expense' },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ expense });
+    // Map for backwards compat
+    const mapped = { ...expense, expense_date: expense.cost_date };
+    return NextResponse.json({ expense: mapped });
   } catch (error) {
     console.error('Expense PATCH error:', error);
     return NextResponse.json(
@@ -126,20 +131,20 @@ export async function DELETE(
     const { id } = await params;
 
     const { error } = await supabase
-      .from('expenses')
+      .from('project_costs')
       .delete()
       .eq('id', id);
 
     if (error) {
       console.error('Error deleting expense:', error);
-      
+
       if (error.code === 'PGRST116') {
         return NextResponse.json(
           { error: 'Expense not found' },
           { status: 404 }
         );
       }
-      
+
       return NextResponse.json(
         { error: 'Failed to delete expense' },
         { status: 500 }
