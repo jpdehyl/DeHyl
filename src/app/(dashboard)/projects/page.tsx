@@ -21,7 +21,7 @@ function ProjectsContent() {
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState("active");
   const [client, setClient] = useState("all");
   const [filter, setFilter] = useState(initialFilter);
 
