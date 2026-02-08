@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { RefreshCw, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
@@ -23,12 +24,38 @@ export function Header({ title, description, action }: HeaderProps) {
     setMobileNavOpen,
   } = useAppStore();
 
+  // Fetch last sync time on mount
+  useEffect(() => {
+    async function fetchSyncStatus() {
+      try {
+        const res = await fetch("/api/sync/status");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.lastSynced) {
+            setLastSyncedAt(new Date(data.lastSynced));
+          }
+        }
+      } catch {
+        // Silently fail - not critical
+      }
+    }
+    if (!lastSyncedAt) {
+      fetchSyncStatus();
+    }
+  }, [lastSyncedAt, setLastSyncedAt]);
+
   const handleSync = async () => {
     setSyncing(true);
-    // Simulate sync - in production this would call the actual sync API
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setLastSyncedAt(new Date());
-    setSyncing(false);
+    try {
+      const res = await fetch("/api/cron/sync", { method: "GET" });
+      if (res.ok) {
+        setLastSyncedAt(new Date());
+      }
+    } catch {
+      // Sync failed silently
+    } finally {
+      setSyncing(false);
+    }
   };
 
   return (

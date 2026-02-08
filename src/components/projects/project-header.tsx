@@ -55,21 +55,21 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2" asChild>
+        <div className="flex items-center gap-2 ml-12 md:ml-0">
+          <Button variant="outline" size="sm" className="gap-2 h-10 sm:h-9 px-4" asChild>
             <Link href={`/projects/${project.id}/estimate`}>
               <FileText className="h-4 w-4" />
               Estimate
             </Link>
           </Button>
-          <Button variant="outline" size="sm" className="gap-2" asChild>
+          <Button variant="outline" size="sm" className="gap-2 h-10 sm:h-9 px-4" asChild>
             <a
               href={`https://drive.google.com/drive/folders/${project.driveId}`}
               target="_blank"
               rel="noopener noreferrer"
             >
               <ExternalLink className="h-4 w-4" />
-              Open in Drive
+              Drive
             </a>
           </Button>
         </div>

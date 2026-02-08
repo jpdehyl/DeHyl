@@ -6,18 +6,10 @@ import {
   LayoutDashboard,
   FolderKanban,
   Receipt,
-  CreditCard,
   Settings,
   ChevronLeft,
   ChevronRight,
-  FileText,
-  TrendingUp,
-  ClipboardList,
-  Wallet,
-  ImageIcon,
-  ShieldCheck,
-  Users,
-  Clock,
+  DollarSign,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -43,54 +35,14 @@ const navItems = [
     icon: FolderKanban,
   },
   {
-    title: "Daily Logs",
-    href: "/daily-logs",
-    icon: ClipboardList,
-  },
-  {
-    title: "Timesheets",
-    href: "/timesheets",
-    icon: Clock,
-  },
-  {
-    title: "Expenses",
+    title: "Costs",
     href: "/expenses",
-    icon: Receipt,
+    icon: DollarSign,
   },
   {
-    title: "Photos",
-    href: "/photos",
-    icon: ImageIcon,
-  },
-  {
-    title: "Safety",
-    href: "/safety",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Bids",
-    href: "/bids",
-    icon: FileText,
-  },
-  {
-    title: "Receivables",
+    title: "Invoices",
     href: "/receivables",
     icon: Receipt,
-  },
-  {
-    title: "Payables",
-    href: "/payables",
-    icon: CreditCard,
-  },
-  {
-    title: "Cash Flow",
-    href: "/cash-flow",
-    icon: Wallet,
-  },
-  {
-    title: "Profitability",
-    href: "/profitability",
-    icon: TrendingUp,
   },
   {
     title: "Settings",

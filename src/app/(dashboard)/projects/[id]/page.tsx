@@ -12,6 +12,7 @@ import {
   ProjectTimeline,
   ProjectPhotos,
   PortalSettings,
+  QuickCostEntry,
 } from "@/components/projects";
 import {
   Tabs,
@@ -168,11 +169,11 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
         {/* Tabs for Timeline, Photos, Costs, and Financials */}
         <Tabs defaultValue="timeline" className="w-full">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="photos">Photos</TabsTrigger>
-            <TabsTrigger value="costs">Costs</TabsTrigger>
-            <TabsTrigger value="financials">Invoices & Bills</TabsTrigger>
+          <TabsList className="grid w-full max-w-2xl grid-cols-4 h-auto">
+            <TabsTrigger value="timeline" className="py-2.5 text-xs sm:text-sm">Timeline</TabsTrigger>
+            <TabsTrigger value="photos" className="py-2.5 text-xs sm:text-sm">Photos</TabsTrigger>
+            <TabsTrigger value="costs" className="py-2.5 text-xs sm:text-sm">Costs</TabsTrigger>
+            <TabsTrigger value="financials" className="py-2.5 text-xs sm:text-sm">Invoices</TabsTrigger>
           </TabsList>
 
           {/* Timeline Tab - The Story of the Project */}
@@ -202,6 +203,9 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         {/* Client Portal Settings */}
         <PortalSettings projectId={id} projectCode={project.code} />
       </div>
+
+      {/* Floating quick cost entry */}
+      <QuickCostEntry projectId={id} />
     </div>
   );
 }

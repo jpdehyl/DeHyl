@@ -9,3 +9,4 @@ export { ProjectCosts } from "./project-costs";
 export { ProjectTimeline } from "./project-timeline";
 export { ProjectPhotos } from "./project-photos";
 export { PortalSettings } from "./portal-settings";
+export { QuickCostEntry } from "./quick-cost-entry";

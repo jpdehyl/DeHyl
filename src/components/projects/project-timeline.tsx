@@ -83,12 +83,12 @@ function TimelineItem({
   };
 
   return (
-    <div className="relative flex gap-4">
+    <div className="relative flex gap-3 sm:gap-4">
       {/* Timeline connector */}
       <div className="flex flex-col items-center">
         <div
           className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-full text-lg",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg",
             config.color
           )}
         >
@@ -100,10 +100,10 @@ function TimelineItem({
       </div>
 
       {/* Content */}
-      <div className="flex-1 pb-6">
+      <div className="flex-1 min-w-0 pb-6">
         <div
           className={cn(
-            "rounded-lg border bg-card p-4 transition-colors cursor-pointer hover:bg-muted/50",
+            "rounded-lg border bg-card p-3 sm:p-4 transition-colors cursor-pointer hover:bg-muted/50 active:bg-muted/60",
             expanded && "bg-muted/30"
           )}
           onClick={() => setExpanded(!expanded)}
@@ -340,8 +340,8 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
+      <CardHeader className="px-4 sm:px-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <CardTitle>Project Timeline</CardTitle>
             <CardDescription>
@@ -352,6 +352,7 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
             <Button
               variant="outline"
               size="sm"
+              className="h-10 sm:h-9"
               onClick={handleSync}
               disabled={syncing}
             >
@@ -359,7 +360,7 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm">Add Note</Button>
+                <Button size="sm" className="h-10 sm:h-9">Add Note</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
@@ -413,12 +414,13 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2 pt-4">
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {FILTER_OPTIONS.map((option) => (
               <Button
                 key={option.value}
                 variant={filter === option.value ? "default" : "outline"}
                 size="sm"
+                className="h-9 px-3 text-xs sm:text-sm"
                 onClick={() => setFilter(option.value)}
               >
                 {option.label}
@@ -430,7 +432,7 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
               value={sortOrder}
               onValueChange={(v) => setSortOrder(v as "desc" | "asc")}
             >
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[140px] h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -442,7 +444,7 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="px-4 sm:px-6">
         {error && (
           <div className="text-center py-8 text-destructive">
             <p>{error}</p>

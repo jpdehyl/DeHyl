@@ -34,16 +34,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Plus, 
-  Receipt, 
-  AlertTriangle, 
-  DollarSign, 
+import {
+  Plus,
+  Receipt,
+  AlertTriangle,
+  DollarSign,
   TrendingUp,
   Edit,
   CheckCircle,
   Building2,
-  FileText
+  FileText,
+  FileSpreadsheet
 } from "lucide-react";
 import Link from "next/link";
 import { formatDate, formatCurrency, cn } from "@/lib/utils";
@@ -276,6 +277,13 @@ export default function ExpensesPage() {
         title="Expenses"
         description="Project cost tracking and invoice linking"
         action={
+          <div className="flex gap-2">
+          <Link href="/expenses/import">
+            <Button variant="outline" size="sm">
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Import
+            </Button>
+          </Link>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogTrigger asChild>
               <Button>
@@ -393,6 +401,7 @@ export default function ExpensesPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         }
       />
 

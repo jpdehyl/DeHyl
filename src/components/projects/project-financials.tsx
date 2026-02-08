@@ -29,8 +29,8 @@ export function ProjectFinancials({ project }: ProjectFinancialsProps) {
         "border-l-4",
         profit > 0 ? "border-l-green-500" : profit < 0 ? "border-l-red-500" : "border-l-gray-400"
       )}>
-        <CardContent className="py-4">
-          <div className="flex flex-wrap items-center justify-center gap-3 text-center md:gap-6">
+        <CardContent className="py-4 px-4 sm:px-6">
+          <div className="flex flex-wrap items-center justify-center gap-4 text-center sm:gap-6">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Revenue</p>
               <p className="text-xl font-bold text-green-600 dark:text-green-400">
