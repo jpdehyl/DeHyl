@@ -34,14 +34,23 @@ export async function GET(
     .eq("project_id", id)
     .order("bill_date", { ascending: false });
 
+  // Fetch project costs (manual cost entries)
+  const { data: costsData } = await supabase
+    .from("project_costs")
+    .select("*")
+    .eq("project_id", id);
+
   // Compute totals
   const invoices = invoicesData || [];
   const bills = billsData || [];
+  const projectCosts = costsData || [];
 
   const invoiced = invoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
   const outstanding = invoices.reduce((sum, inv) => sum + Number(inv.balance), 0);
   const paid = invoiced - outstanding;
-  const costs = bills.reduce((sum, bill) => sum + Number(bill.amount), 0);
+  const billCosts = bills.reduce((sum, bill) => sum + Number(bill.amount), 0);
+  const manualCosts = projectCosts.reduce((sum, c) => sum + Number(c.amount), 0);
+  const costs = billCosts + manualCosts;
   const profit = paid - costs;
 
   // Transform project to ProjectWithTotals

@@ -205,6 +205,24 @@ export interface EstimateCategoryTotals {
 }
 
 // -------------------------------------------
+// Project Cost (manual cost entries)
+// -------------------------------------------
+export type CostCategory = 'labor' | 'materials' | 'equipment' | 'subcontractor' | 'disposal' | 'permits' | 'fuel' | 'rental' | 'other';
+
+export interface ProjectCost {
+  id: string;
+  projectId: string;
+  description: string;
+  amount: number;
+  costDate: Date;
+  category: CostCategory;
+  vendor: string | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// -------------------------------------------
 // Dashboard
 // -------------------------------------------
 export interface DashboardKPIs {

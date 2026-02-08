@@ -77,54 +77,61 @@ export async function POST() {
       console.log("QuickBooks tokens refreshed and persisted successfully");
     });
 
-    // Sync invoices
-    const invoices = (await qbClient.getOpenInvoices()) as unknown as QBInvoice[];
+    // Sync ALL invoices (not just open) so paid invoices get status/balance updated
+    const invoices = (await qbClient.getAllInvoices()) as unknown as QBInvoice[];
+    const now = new Date();
     const mappedInvoices = invoices.map((inv) => {
       const balance = parseFloat(inv.Balance);
+      const amount = parseFloat(inv.TotalAmt);
       const dueDate = inv.DueDate ? new Date(inv.DueDate) : null;
-      const isOverdue = dueDate && dueDate < new Date() && balance > 0;
+      const isOverdue = dueDate && dueDate < now && balance > 0;
 
       return {
         qb_id: inv.Id,
         invoice_number: inv.DocNumber || null,
         client_name: inv.CustomerRef?.name || "Unknown",
-        amount: parseFloat(inv.TotalAmt),
+        amount,
         balance,
         issue_date: inv.TxnDate || null,
         due_date: inv.DueDate || null,
         status: balance === 0 ? "paid" : isOverdue ? "overdue" : "sent",
         memo: inv.PrivateNote || null,
-        synced_at: new Date().toISOString(),
+        synced_at: now.toISOString(),
       };
     });
 
     if (mappedInvoices.length > 0) {
-      const { error: invoiceError } = await supabase
-        .from("invoices")
-        .upsert(mappedInvoices, { onConflict: "qb_id" });
+      // Upsert in batches to avoid payload limits
+      for (let i = 0; i < mappedInvoices.length; i += 500) {
+        const batch = mappedInvoices.slice(i, i + 500);
+        const { error: invoiceError } = await supabase
+          .from("invoices")
+          .upsert(batch, { onConflict: "qb_id" });
 
-      if (invoiceError) {
-        console.error("Failed to upsert invoices:", invoiceError);
+        if (invoiceError) {
+          console.error("Failed to upsert invoices batch:", invoiceError);
+        }
       }
     }
 
-    // Sync bills
-    const bills = (await qbClient.getOpenBills()) as unknown as QBBill[];
+    // Sync ALL bills (not just open) so paid bills get status/balance updated
+    const bills = (await qbClient.getAllBills()) as unknown as QBBill[];
     const mappedBills = bills.map((bill) => {
       const balance = parseFloat(bill.Balance);
+      const amount = parseFloat(bill.TotalAmt);
       const dueDate = bill.DueDate ? new Date(bill.DueDate) : null;
-      const isOverdue = dueDate && dueDate < new Date() && balance > 0;
+      const isOverdue = dueDate && dueDate < now && balance > 0;
 
       return {
         qb_id: bill.Id,
         vendor_name: bill.VendorRef?.name || "Unknown",
-        amount: parseFloat(bill.TotalAmt),
+        amount,
         balance,
         bill_date: bill.TxnDate || null,
         due_date: bill.DueDate || null,
         status: balance === 0 ? "paid" : isOverdue ? "overdue" : "open",
         memo: bill.PrivateNote || null,
-        synced_at: new Date().toISOString(),
+        synced_at: now.toISOString(),
       };
     });
 
@@ -140,13 +147,15 @@ export async function POST() {
       // Filter out manually overridden bills before upserting
       const billsToSync = mappedBills.filter((b) => !overriddenQbIds.has(b.qb_id));
 
-      if (billsToSync.length > 0) {
+      // Upsert in batches
+      for (let i = 0; i < billsToSync.length; i += 500) {
+        const batch = billsToSync.slice(i, i + 500);
         const { error: billError } = await supabase
           .from("bills")
-          .upsert(billsToSync, { onConflict: "qb_id" });
+          .upsert(batch, { onConflict: "qb_id" });
 
         if (billError) {
-          console.error("Failed to upsert bills:", billError);
+          console.error("Failed to upsert bills batch:", billError);
         }
       }
     }

@@ -196,6 +196,30 @@ export class QuickBooksClient {
     return result.QueryResponse.Invoice || [];
   }
 
+  // Query all invoices (paginated) for full sync
+  async getAllInvoices() {
+    const allInvoices: Array<Record<string, unknown>> = [];
+    let startPosition = 1;
+    const maxResults = 1000;
+
+    while (true) {
+      const query = encodeURIComponent(
+        `SELECT * FROM Invoice STARTPOSITION ${startPosition} MAXRESULTS ${maxResults}`
+      );
+      const result = await this.apiRequest<{
+        QueryResponse: { Invoice?: Array<Record<string, unknown>>; maxResults?: number };
+      }>(`/query?query=${query}`);
+
+      const invoices = result.QueryResponse.Invoice || [];
+      allInvoices.push(...invoices);
+
+      if (invoices.length < maxResults) break;
+      startPosition += maxResults;
+    }
+
+    return allInvoices;
+  }
+
   // Query bills with balance > 0 (open bills)
   async getOpenBills() {
     const query = encodeURIComponent("SELECT * FROM Bill WHERE Balance > '0'");
@@ -204,6 +228,30 @@ export class QuickBooksClient {
     }>(`/query?query=${query}`);
 
     return result.QueryResponse.Bill || [];
+  }
+
+  // Query all bills (paginated) for full sync
+  async getAllBills() {
+    const allBills: Array<Record<string, unknown>> = [];
+    let startPosition = 1;
+    const maxResults = 1000;
+
+    while (true) {
+      const query = encodeURIComponent(
+        `SELECT * FROM Bill STARTPOSITION ${startPosition} MAXRESULTS ${maxResults}`
+      );
+      const result = await this.apiRequest<{
+        QueryResponse: { Bill?: Array<Record<string, unknown>>; maxResults?: number };
+      }>(`/query?query=${query}`);
+
+      const bills = result.QueryResponse.Bill || [];
+      allBills.push(...bills);
+
+      if (bills.length < maxResults) break;
+      startPosition += maxResults;
+    }
+
+    return allBills;
   }
 
   // Get company info
