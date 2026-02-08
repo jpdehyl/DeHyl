@@ -7,6 +7,8 @@ const isPublicRoute = createRouteMatcher([
   "/login(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/api/auth(.*)", // OAuth callbacks (QuickBooks, Google)
+  "/api/cron(.*)", // Vercel cron jobs
   "/api/portal(.*)", // Portal API (access code validated internally)
   "/api/webhook(.*)", // Webhooks
   "/api/daily-logs/webhook(.*)", // Robbie daily log webhook
