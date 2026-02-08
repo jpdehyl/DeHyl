@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   "/portal(.*)", // Client portal uses access codes
   "/api/portal(.*)", // Portal API
   "/api/webhook(.*)", // Webhooks
+  "/api/daily-logs/webhook(.*)", // Robbie daily log webhook
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
