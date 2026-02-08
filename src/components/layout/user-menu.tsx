@@ -22,7 +22,7 @@ const roleColors: Record<string, string> = {
   client: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
 };
 
-export function UserMenu() {
+function ClerkUserMenu() {
   const router = useRouter();
   const { user, isLoaded, isSignedIn } = useUser();
   const { signOut } = useClerk();
@@ -101,4 +101,20 @@ export function UserMenu() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function FallbackUserMenu() {
+  return (
+    <Avatar className="h-8 w-8">
+      <AvatarFallback className="text-xs">JP</AvatarFallback>
+    </Avatar>
+  );
+}
+
+export function UserMenu() {
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    return <FallbackUserMenu />;
+  }
+
+  return <ClerkUserMenu />;
 }
