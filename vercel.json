@@ -1,11 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/sync?source=quickbooks",
-      "schedule": "0 */4 * * *"
-    },
-    {
-      "path": "/api/cron/sync?source=google_drive",
+      "path": "/api/cron/sync",
       "schedule": "0 6 * * *"
     }
   ]
