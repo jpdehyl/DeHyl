@@ -10,6 +10,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/portal(.*)", // Portal API (access code validated internally)
   "/api/webhook(.*)", // Webhooks
   "/api/daily-logs/webhook(.*)", // Robbie daily log webhook
+  "/api/cron(.*)", // Vercel Cron jobs (auth via CRON_SECRET header)
 ]);
 
 const clerkHandler = clerkMiddleware(async (auth, request) => {
