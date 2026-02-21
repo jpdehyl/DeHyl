@@ -156,6 +156,16 @@ export async function GET(request: NextRequest) {
         expiresAt: new Date(googleToken.expires_at),
       });
 
+      // Persist refreshed tokens back to database
+      driveClient.setOnTokenRefresh(async (tokens) => {
+        await supabase.from("oauth_tokens").update({
+          access_token: tokens.accessToken,
+          refresh_token: tokens.refreshToken,
+          expires_at: tokens.expiresAt.toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq("provider", "google");
+      });
+
       // Get client mappings
       const { data: clientMappings } = await supabase
         .from("client_mappings")

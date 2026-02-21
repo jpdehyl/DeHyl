@@ -47,9 +47,12 @@ export interface UploadResult {
   size: number;
 }
 
+type TokenRefreshCallback = (tokens: GoogleTokens) => Promise<void>;
+
 export class GoogleDriveClient {
   private config: GoogleConfig;
   private tokens: GoogleTokens | null = null;
+  private onTokenRefresh: TokenRefreshCallback | null = null;
 
   constructor(config?: Partial<GoogleConfig>) {
     this.config = {
@@ -134,12 +137,22 @@ export class GoogleDriveClient {
       expiresAt: new Date(Date.now() + data.expires_in * 1000),
     };
 
+    // Persist refreshed tokens if callback is set
+    if (this.onTokenRefresh) {
+      await this.onTokenRefresh(this.tokens);
+    }
+
     return this.tokens;
   }
 
   // Set tokens (e.g., from database)
   setTokens(tokens: GoogleTokens) {
     this.tokens = tokens;
+  }
+
+  // Set callback for when tokens are refreshed (for persistence)
+  setOnTokenRefresh(callback: TokenRefreshCallback) {
+    this.onTokenRefresh = callback;
   }
 
   // Make authenticated API request
