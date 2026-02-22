@@ -79,7 +79,7 @@ export function Header({ title, description, action }: HeaderProps) {
 
       <div className="flex items-center gap-1.5">
         {lastSyncedAt && (
-          <span className="hidden sm:inline text-xs text-muted-foreground/60">
+          <span className="hidden sm:inline text-xs text-muted-foreground/60" suppressHydrationWarning>
             {getRelativeTime(lastSyncedAt)}
           </span>
         )}

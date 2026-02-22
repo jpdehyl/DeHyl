@@ -1,6 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { MainContent } from "@/components/layout/main-content";
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
@@ -14,9 +15,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <MobileNav />
 
       {/* Main content */}
-      <main className="min-h-screen transition-all duration-300 md:pl-64 data-[sidebar-collapsed=true]:md:pl-16">
-        {children}
-      </main>
+      <MainContent>{children}</MainContent>
     </div>
   );
 }

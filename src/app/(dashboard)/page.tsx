@@ -236,15 +236,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header title="Command Center" description="DeHyl Demolition" />
+      <Header title={today} description={weather.trim()} />
 
       <div className="max-w-5xl mx-auto px-6 md:px-10 pt-8 pb-24">
-
-        {/* Date + Weather — Centered */}
-        <div className="text-center mb-10">
-          <p className="text-sm tracking-wide text-muted-foreground">{today}</p>
-          <p className="text-xs text-muted-foreground/50 mt-1">{weather.trim()}</p>
-        </div>
 
         {/* Top Row — Money (left) + Attention (right) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 mb-16">

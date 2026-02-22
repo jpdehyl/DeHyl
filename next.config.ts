@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
-const devOrigins: string[] = ["*.replit.dev", "*.replit.app", "*.janeway.replit.dev"];
+const devOrigins: string[] = [
+  "*.replit.dev",
+  "*.replit.app",
+  "*.repl.co",
+  "*.janeway.replit.dev",
+  "*.janeway.repl.co",
+];
 if (process.env.REPLIT_DEV_DOMAIN) {
   devOrigins.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
 }

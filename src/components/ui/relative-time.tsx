@@ -1,7 +1,14 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { getRelativeTime } from "@/lib/utils";
 
 export function RelativeTime({ date, className }: { date: string | Date; className?: string }) {
-  return <span className={className}>{getRelativeTime(date)}</span>;
+  const [text, setText] = useState("");
+
+  useEffect(() => {
+    setText(getRelativeTime(date));
+  }, [date]);
+
+  return <span className={className} suppressHydrationWarning>{text}</span>;
 }
