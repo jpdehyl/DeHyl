@@ -195,7 +195,25 @@ export async function GET() {
       });
     }
 
-    // 8. Projects with negative profit (critical)
+    // 8. Amex statement reminder — triggers when Amex bill data is 25+ days old
+    const amexBills = bills.filter((b) =>
+      b.vendorName.toLowerCase().includes("amex") ||
+      b.vendorName.toLowerCase().includes("american express")
+    );
+    if (amexBills.length > 0) {
+      const twentyFiveDaysAgo = new Date(now.getTime() - 25 * 24 * 60 * 60 * 1000);
+      const staleAmex = amexBills.filter((b) => new Date(b.syncedAt) < twentyFiveDaysAgo);
+      if (staleAmex.length > 0) {
+        alerts.push({
+          type: "amex_statement_due",
+          count: 1,
+          total: staleAmex.reduce((sum, b) => sum + b.balance, 0),
+          severity: "warning",
+        });
+      }
+    }
+
+    // 9. Projects with negative profit (critical)
     const negativeProfit = projects.filter(
       (p) => p.status === "active" && p.totals && p.totals.profit < 0
     );

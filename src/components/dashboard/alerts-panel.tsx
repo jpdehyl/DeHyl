@@ -11,6 +11,7 @@ import {
   Lightbulb,
   CalendarClock,
   TrendingDown,
+  CreditCard,
 } from "lucide-react";
 import {
   Card,
@@ -100,6 +101,14 @@ const alertConfig: Record<AlertType, AlertConfig> = {
     color: "text-destructive",
     bgColor: "bg-destructive/10",
     severity: "critical",
+  },
+  amex_statement_due: {
+    icon: CreditCard,
+    title: "Amex Statement Update Due",
+    href: "/cash-flow",
+    color: "text-warning",
+    bgColor: "bg-warning/10",
+    severity: "warning",
   },
 };
 

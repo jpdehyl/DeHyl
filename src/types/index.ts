@@ -244,7 +244,8 @@ export type AlertType =
   | 'unassigned_invoices'
   | 'invoice_suggestions'
   | 'aging_receivables'
-  | 'negative_profit';
+  | 'negative_profit'
+  | 'amex_statement_due';
 
 export type AlertSeverity = 'critical' | 'warning' | 'info';
 
