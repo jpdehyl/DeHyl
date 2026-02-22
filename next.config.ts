@@ -1,10 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Enable React strict mode for development
   reactStrictMode: true,
-
-  // Allow images from Google Drive for photo thumbnails
+  allowedDevOrigins: ["*"],
   images: {
     remotePatterns: [
       {
