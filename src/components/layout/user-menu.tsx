@@ -112,7 +112,8 @@ function FallbackUserMenu() {
 }
 
 export function UserMenu() {
-  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+  const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  if (!clerkKey || !clerkKey.startsWith("pk_")) {
     return <FallbackUserMenu />;
   }
 

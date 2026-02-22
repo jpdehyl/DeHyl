@@ -1,8 +1,18 @@
 import type { NextConfig } from "next";
 
+const devOrigins: string[] = [];
+if (process.env.REPLIT_DEV_DOMAIN) {
+  devOrigins.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+}
+if (process.env.REPLIT_DOMAINS) {
+  process.env.REPLIT_DOMAINS.split(",").forEach((d) =>
+    devOrigins.push(`https://${d.trim()}`)
+  );
+}
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  allowedDevOrigins: ["*"],
+  allowedDevOrigins: devOrigins,
   images: {
     remotePatterns: [
       {
