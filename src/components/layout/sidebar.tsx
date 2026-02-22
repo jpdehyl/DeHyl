@@ -12,7 +12,6 @@ const navItems = [
   { title: "Stories", href: "/stories" },
   { title: "Costs", href: "/expenses" },
   { title: "Invoices", href: "/receivables" },
-  { title: "Settings", href: "/settings" },
 ];
 
 export function Sidebar() {
