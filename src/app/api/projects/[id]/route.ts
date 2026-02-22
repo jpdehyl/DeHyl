@@ -107,6 +107,7 @@ export async function GET(
     projectId: inv.project_id,
     matchConfidence: inv.match_confidence as "high" | "medium" | "low" | null,
     memo: inv.memo,
+    manualOverride: inv.manual_override ?? false,
     syncedAt: inv.synced_at ? new Date(inv.synced_at) : new Date(),
   }));
 

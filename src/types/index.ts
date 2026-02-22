@@ -73,6 +73,7 @@ export interface Invoice {
   projectId: string | null;
   matchConfidence: 'high' | 'medium' | 'low' | null;
   memo: string | null;
+  manualOverride: boolean;
   syncedAt: Date;
 }
 
