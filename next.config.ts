@@ -13,6 +13,12 @@ if (process.env.REPLIT_DOMAINS) {
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: devOrigins,
+  experimental: {
+    staleTimes: {
+      dynamic: 300,
+      static: 600,
+    },
+  },
   images: {
     remotePatterns: [
       {

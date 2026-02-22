@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
-import { formatCurrency, getDaysOverdue, getRelativeTime } from "@/lib/utils";
+import { RelativeTime } from "@/components/ui/relative-time";
+import { formatCurrency, getDaysOverdue } from "@/lib/utils";
 import Link from "next/link";
 
 async function getWeather(): Promise<string> {
@@ -391,9 +392,10 @@ export default async function DashboardPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 pt-1">
-                    <span className="text-xs text-muted-foreground/60">
-                      {getRelativeTime(project.lastUpdate)}
-                    </span>
+                    <RelativeTime
+                      date={project.lastUpdate}
+                      className="text-xs text-muted-foreground/60"
+                    />
                     <div
                       className={`w-2 h-2 rounded-full ${
                         project.status === 'fresh' ? 'bg-emerald-400' :

@@ -2,8 +2,6 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
 
-export const dynamic = "force-dynamic";
-
 function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-screen">
