@@ -231,37 +231,94 @@ export default async function DashboardPage() {
   }
   const briefingSummary = briefingParts.join(". ") + ".";
 
+  const hasAttention = allAttentionItems.length > 0 || unassignedHours.totalEntries > 0 || unbilledExpenses.totalEntries > 0;
+
   return (
     <div className="min-h-screen bg-background">
       <Header title="Command Center" description="DeHyl Demolition" />
 
-      <div className="max-w-2xl mx-auto px-6 pt-12 pb-24 space-y-16">
+      <div className="max-w-5xl mx-auto px-6 md:px-10 pt-8 pb-24">
 
-        {/* Hero — The Headline */}
-        <section className="space-y-6">
-          <p className="text-sm tracking-wide text-muted-foreground uppercase">{today}</p>
+        {/* Date + Weather — Centered */}
+        <div className="text-center mb-10">
+          <p className="text-sm tracking-wide text-muted-foreground">{today}</p>
+          <p className="text-xs text-muted-foreground/50 mt-1">{weather.trim()}</p>
+        </div>
 
-          <div>
-            <p className={`font-serif text-5xl md:text-6xl font-semibold tracking-tight tabular-nums leading-none ${cashPosition.netPosition >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'}`}>
-              {formatCurrency(cashPosition.netPosition)}
+        {/* Top Row — Money (left) + Attention (right) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 mb-16">
+
+          {/* Left — Money */}
+          <div className="space-y-8">
+            <div>
+              <p className={`font-serif text-5xl font-semibold tracking-tight tabular-nums leading-none ${cashPosition.netPosition >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'}`}>
+                {formatCurrency(cashPosition.netPosition)}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">net position</p>
+            </div>
+
+            <div className="flex gap-10">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Receivables</p>
+                <p className="font-serif text-2xl font-semibold tabular-nums tracking-tight mt-1">
+                  {formatCurrency(cashPosition.totalReceivables)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Payables</p>
+                <p className="font-serif text-2xl font-semibold tabular-nums tracking-tight mt-1">
+                  {formatCurrency(cashPosition.totalPayables)}
+                </p>
+              </div>
+            </div>
+
+            {totalOutstanding > 0 && (
+              <div className="space-y-3">
+                <div className="flex gap-1 h-1.5 rounded-full overflow-hidden bg-muted/30">
+                  {[
+                    { amount: arAging.current, color: 'bg-emerald-400/70' },
+                    { amount: arAging.days1to30, color: 'bg-amber-300/70' },
+                    { amount: arAging.days31to60, color: 'bg-amber-400/70' },
+                    { amount: arAging.days61to90, color: 'bg-red-300/70' },
+                    { amount: arAging.days90plus, color: 'bg-red-500/70' },
+                  ].map((bucket, i) => {
+                    const pct = totalOutstanding > 0 ? (bucket.amount / totalOutstanding) * 100 : 0;
+                    if (pct < 0.5) return null;
+                    return (
+                      <div
+                        key={i}
+                        className={`${bucket.color} rounded-full`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{formatCurrency(arAging.current)} current</span>
+                  <Link href="/receivables" className="hover:text-foreground transition-colors">
+                    {totalOverdue > 0 ? `${formatCurrency(totalOverdue)} overdue` : 'View all'}
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {briefingSummary}
             </p>
-            <p className="text-sm text-muted-foreground mt-3">net position</p>
           </div>
 
-          <p className="text-base leading-relaxed text-muted-foreground max-w-md">
-            {briefingSummary}
-          </p>
-
-          <p className="text-xs text-muted-foreground/60">{weather.trim()}</p>
-        </section>
-
-        {/* Attention — Feature Stories */}
-        {(allAttentionItems.length > 0 || unassignedHours.totalEntries > 0 || unbilledExpenses.totalEntries > 0) && (
-          <section className="space-y-8">
-            <div className="flex items-center gap-4">
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Needs your attention</h2>
+          {/* Right — Attention */}
+          <div className="space-y-5">
+            <div className="flex items-center gap-3">
+              {hasAttention && <div className="w-1.5 h-1.5 rounded-full bg-red-500" />}
+              <h2 className="font-serif text-xl font-semibold tracking-tight">
+                {hasAttention ? 'Needs attention' : 'All clear'}
+              </h2>
             </div>
+
+            {!hasAttention && (
+              <p className="text-sm text-muted-foreground">Nothing urgent right now.</p>
+            )}
 
             {allAttentionItems.map((client: any) => (
               <Link
@@ -269,13 +326,12 @@ export default async function DashboardPage() {
                 href="/receivables"
                 className="block group"
               >
-                <div className="pl-6 border-l-2 border-red-200 dark:border-red-900 py-1">
-                  <p className="text-lg font-medium group-hover:underline decoration-1 underline-offset-4">
+                <div className="pl-5 border-l-2 border-red-200 dark:border-red-900 py-1">
+                  <p className="font-medium group-hover:underline decoration-1 underline-offset-4">
                     {client.name}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {formatCurrency(client.totalOverdue)} across {client.invoiceCount} invoice{client.invoiceCount !== 1 ? 's' : ''},
-                    oldest {client.oldestDays} days ago
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {formatCurrency(client.totalOverdue)} &middot; {client.invoiceCount} invoice{client.invoiceCount !== 1 ? 's' : ''} &middot; {client.oldestDays}d overdue
                   </p>
                 </div>
               </Link>
@@ -283,12 +339,12 @@ export default async function DashboardPage() {
 
             {unassignedHours.totalEntries > 0 && (
               <Link href="/timesheets?status=unassigned" className="block group">
-                <div className="pl-6 border-l-2 border-amber-200 dark:border-amber-900 py-1">
-                  <p className="text-lg font-medium group-hover:underline decoration-1 underline-offset-4">
-                    {unassignedHours.totalHours.toFixed(0)} hours need assignment
+                <div className="pl-5 border-l-2 border-amber-200 dark:border-amber-900 py-1">
+                  <p className="font-medium group-hover:underline decoration-1 underline-offset-4">
+                    {unassignedHours.totalHours.toFixed(0)} hours unassigned
                   </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {unassignedHours.totalEntries} timesheet {unassignedHours.totalEntries === 1 ? 'entry' : 'entries'} waiting
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {unassignedHours.totalEntries} timesheet {unassignedHours.totalEntries === 1 ? 'entry' : 'entries'}
                   </p>
                 </div>
               </Link>
@@ -296,46 +352,46 @@ export default async function DashboardPage() {
 
             {unbilledExpenses.totalEntries > 0 && (
               <Link href="/expenses?status=unlinked" className="block group">
-                <div className="pl-6 border-l-2 border-amber-200 dark:border-amber-900 py-1">
-                  <p className="text-lg font-medium group-hover:underline decoration-1 underline-offset-4">
-                    {formatCurrency(unbilledExpenses.totalAmount)} not yet invoiced
+                <div className="pl-5 border-l-2 border-amber-200 dark:border-amber-900 py-1">
+                  <p className="font-medium group-hover:underline decoration-1 underline-offset-4">
+                    {formatCurrency(unbilledExpenses.totalAmount)} unbilled
                   </p>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm text-muted-foreground mt-0.5">
                     {unbilledExpenses.totalEntries} expense{unbilledExpenses.totalEntries !== 1 ? 's' : ''} to link
                   </p>
                 </div>
               </Link>
             )}
-          </section>
-        )}
+          </div>
+        </div>
 
-        {/* Projects — Editorial Feed */}
-        <section className="space-y-6">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-serif text-2xl font-semibold tracking-tight">Projects</h2>
+        {/* Projects — Full Width Editorial Feed */}
+        <section>
+          <div className="flex items-baseline justify-between mb-6">
+            <h2 className="font-serif text-xl font-semibold tracking-tight">Projects</h2>
             <Link href="/projects" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               View all
             </Link>
           </div>
 
-          <div className="space-y-6">
-            {activeProjects.slice(0, 5).map((project: any) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-6">
+            {activeProjects.slice(0, 6).map((project: any) => (
               <Link
                 key={project.id}
                 href={`/projects/${project.id}`}
                 className="block group"
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium group-hover:underline decoration-1 underline-offset-4">
+                    <p className="font-medium group-hover:underline decoration-1 underline-offset-4 line-clamp-1">
                       {project.description || project.client_name || project.client_code}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
                       {project.updateSnippet}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2.5 shrink-0 pt-0.5">
-                    <span className="text-xs text-muted-foreground/70">
+                  <div className="flex items-center gap-2 shrink-0 pt-1">
+                    <span className="text-xs text-muted-foreground/60">
                       {getRelativeTime(project.lastUpdate)}
                     </span>
                     <div
@@ -349,64 +405,6 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
-        </section>
-
-        {/* Money — Typographic Display */}
-        <section className="space-y-10">
-          <h2 className="font-serif text-2xl font-semibold tracking-tight">Money</h2>
-
-          <div className="flex justify-between items-end">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Receivables</p>
-              <p className="font-serif text-3xl font-semibold tabular-nums tracking-tight mt-1">
-                {formatCurrency(cashPosition.totalReceivables)}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Payables</p>
-              <p className="font-serif text-3xl font-semibold tabular-nums tracking-tight mt-1">
-                {formatCurrency(cashPosition.totalPayables)}
-              </p>
-            </div>
-          </div>
-
-          {totalOutstanding > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">Aging</p>
-                <Link href="/receivables" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Details
-                </Link>
-              </div>
-
-              <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-muted/30">
-                {[
-                  { amount: arAging.current, color: 'bg-emerald-400/70' },
-                  { amount: arAging.days1to30, color: 'bg-amber-300/70' },
-                  { amount: arAging.days31to60, color: 'bg-amber-400/70' },
-                  { amount: arAging.days61to90, color: 'bg-red-300/70' },
-                  { amount: arAging.days90plus, color: 'bg-red-500/70' },
-                ].map((bucket, i) => {
-                  const pct = totalOutstanding > 0 ? (bucket.amount / totalOutstanding) * 100 : 0;
-                  if (pct < 0.5) return null;
-                  return (
-                    <div
-                      key={i}
-                      className={`${bucket.color} rounded-full`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  );
-                })}
-              </div>
-
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{formatCurrency(arAging.current)} current</span>
-                {totalOverdue > 0 && (
-                  <span>{formatCurrency(totalOverdue)} overdue</span>
-                )}
-              </div>
-            </div>
-          )}
         </section>
 
       </div>
