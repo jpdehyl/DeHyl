@@ -8,7 +8,7 @@ export default function StoriesLayout({
   children: React.ReactNode;
 }>) {
   const content = (
-    <div className="fixed inset-0 bg-background overflow-hidden">
+    <div className="fixed inset-0 bg-background overflow-hidden lg:static lg:min-h-screen lg:overflow-auto">
       {children}
     </div>
   );

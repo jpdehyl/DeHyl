@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useStoryStore } from "@/lib/stores/story-store";
 import { StoryBubbles } from "@/components/stories/StoryBubbles";
 import { StoryShell } from "@/components/stories/StoryShell";
+import { DesktopStoryView } from "@/components/stories/desktop/DesktopStoryView";
 import { Loader2, X } from "lucide-react";
 import type { StorySummariesResponse, StoryDetailResponse } from "@/types/stories";
 
@@ -94,62 +95,88 @@ export default function StoriesPage() {
     [setCurrentProject]
   );
 
+  // Loading state (mobile style on mobile, handled by DesktopStoryView on desktop)
   if (isLoading && projectSummaries.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950">
-        <Loader2 className="h-8 w-8 text-white/50 animate-spin" />
-      </div>
+      <>
+        {/* Mobile loading */}
+        <div className="lg:hidden h-full flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950">
+          <Loader2 className="h-8 w-8 text-white/50 animate-spin" />
+        </div>
+        {/* Desktop loading */}
+        <div className="hidden lg:flex h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+        </div>
+      </>
     );
   }
 
   if (projectSummaries.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950">
-        <div className="text-center text-white/60 px-8">
-          <p className="text-lg font-medium">No projects yet</p>
-          <p className="text-sm mt-2">
-            Projects will appear here once they have data.
-          </p>
-          <button
-            onClick={() => router.push("/projects")}
-            className="mt-4 text-sm text-primary hover:underline"
-          >
-            Go to Projects
-          </button>
+      <>
+        {/* Mobile empty */}
+        <div className="lg:hidden h-full flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950">
+          <div className="text-center text-white/60 px-8">
+            <p className="text-lg font-medium">No projects yet</p>
+            <p className="text-sm mt-2">
+              Projects will appear here once they have data.
+            </p>
+            <button
+              onClick={() => router.push("/projects")}
+              className="mt-4 text-sm text-primary hover:underline"
+            >
+              Go to Projects
+            </button>
+          </div>
         </div>
-      </div>
+        {/* Desktop empty */}
+        <div className="hidden lg:block">
+          <DesktopStoryView
+            projects={[]}
+            currentProjectId={null}
+            onSelectProject={handleSelectProject}
+          />
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Close button */}
-      <div className="absolute top-[env(safe-area-inset-top,8px)] right-3 z-50">
-        <button
-          onClick={() => router.push("/")}
-          className="p-2 rounded-full bg-black/30 backdrop-blur-sm text-white/80 hover:text-white hover:bg-black/50 transition-colors"
-          data-no-tap
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+    <>
+      {/* Mobile: full-screen immersive story view */}
+      <div className="lg:hidden h-full flex flex-col">
+        {/* Close button */}
+        <div className="absolute top-[env(safe-area-inset-top,8px)] right-3 z-50">
+          <button
+            onClick={() => router.push("/")}
+            className="p-2 rounded-full bg-black/30 backdrop-blur-sm text-white/80 hover:text-white hover:bg-black/50 transition-colors"
+            data-no-tap
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
-      {/* Story bubbles */}
-      <StoryBubbles
-        projects={projectSummaries}
-        currentProjectId={currentProjectId}
-        onSelectProject={handleSelectProject}
-      />
+        {/* Story bubbles */}
+        <StoryBubbles
+          projects={projectSummaries}
+          currentProjectId={currentProjectId}
+          onSelectProject={handleSelectProject}
+        />
 
-      {/* Story content */}
-      <div className="flex-1 min-h-0">
-        {/* Desktop: phone-frame wrapper */}
-        <div className="h-full lg:flex lg:items-center lg:justify-center lg:bg-slate-950">
-          <div className="h-full w-full lg:w-[390px] lg:h-[calc(100%-80px)] lg:max-h-[844px] lg:rounded-[40px] lg:border-4 lg:border-white/10 lg:overflow-hidden lg:shadow-2xl">
-            <StoryShell />
-          </div>
+        {/* Story content */}
+        <div className="flex-1 min-h-0">
+          <StoryShell />
         </div>
       </div>
-    </div>
+
+      {/* Desktop: blog-style card layout */}
+      <div className="hidden lg:block">
+        <DesktopStoryView
+          projects={projectSummaries}
+          currentProjectId={currentProjectId}
+          onSelectProject={handleSelectProject}
+        />
+      </div>
+    </>
   );
 }

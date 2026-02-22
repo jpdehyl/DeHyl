@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ProjectStory, ProjectStorySummary } from "@/types/stories";
+import type { LifecycleStage, ProjectStory, ProjectStorySummary } from "@/types/stories";
 
 interface StoryState {
   // Project summaries for bubbles
@@ -31,6 +31,10 @@ interface StoryState {
   // Project navigation
   nextProject: () => void;
   prevProject: () => void;
+
+  // Desktop expanded stage
+  expandedStageSlug: LifecycleStage | null;
+  setExpandedStageSlug: (slug: LifecycleStage | null) => void;
 
   // Loading
   isLoading: boolean;
@@ -135,6 +139,25 @@ export const useStoryStore = create<StoryState>((set, get) => ({
         direction: "right",
       });
     }
+  },
+
+  expandedStageSlug: null,
+  setExpandedStageSlug: (slug) => {
+    if (slug) {
+      // Also sync the currentStageIndex so substep navigation works
+      const { currentProjectId, stories } = get();
+      if (currentProjectId) {
+        const story = stories.get(currentProjectId);
+        if (story) {
+          const idx = story.stages.findIndex((s) => s.slug === slug);
+          if (idx >= 0) {
+            set({ expandedStageSlug: slug, currentStageIndex: idx, currentSubstepIndex: 0 });
+            return;
+          }
+        }
+      }
+    }
+    set({ expandedStageSlug: slug, currentSubstepIndex: 0 });
   },
 
   isLoading: false,

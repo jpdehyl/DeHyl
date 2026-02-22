@@ -4,6 +4,7 @@ import { useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useStoryStore } from "@/lib/stores/story-store";
 import { useStoryGestures } from "@/hooks/use-story-gestures";
+import { STAGE_GRADIENTS } from "@/lib/stories/stage-config";
 import { StoryProgressBar } from "./StoryProgressBar";
 import { StoryOverlay } from "./StoryOverlay";
 import { StorySubstepDots } from "./StorySubstepDots";
@@ -50,20 +51,6 @@ const substepTransition = {
   ease: "easeInOut" as const,
 };
 
-const STAGE_GRADIENTS: Record<string, string> = {
-  estimate: "from-blue-900 via-blue-800 to-slate-900",
-  crew: "from-teal-900 via-teal-800 to-slate-900",
-  daily_logs: "from-emerald-900 via-emerald-800 to-slate-900",
-  completion: "from-green-900 via-green-800 to-slate-900",
-  invoicing: "from-sky-900 via-sky-800 to-slate-900",
-  bid_invite: "from-purple-900 via-purple-800 to-slate-900",
-  po_contract: "from-indigo-900 via-indigo-800 to-slate-900",
-  pre_planning: "from-cyan-900 via-cyan-800 to-slate-900",
-  materials: "from-orange-900 via-orange-800 to-slate-900",
-  equipment: "from-amber-900 via-amber-800 to-slate-900",
-  safety_docs: "from-yellow-900 via-yellow-800 to-slate-900",
-  payment: "from-rose-900 via-rose-800 to-slate-900",
-};
 
 export function StoryShell() {
   const {
@@ -116,6 +103,9 @@ export function StoryShell() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!story) return;
+      // Skip if the story container is hidden (desktop uses blog layout)
+      const container = document.querySelector("[data-story-container]") as HTMLElement | null;
+      if (container && container.offsetParent === null) return;
       switch (e.key) {
         case "ArrowUp":
           e.preventDefault();

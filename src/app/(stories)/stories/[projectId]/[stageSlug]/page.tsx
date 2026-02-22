@@ -1,9 +1,10 @@
 "use client";
 
-import { use, useEffect } from "react";
+import { use, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useStoryStore } from "@/lib/stores/story-store";
 import { StoryShell } from "@/components/stories/StoryShell";
+import { DesktopStoryView } from "@/components/stories/desktop/DesktopStoryView";
 import { Loader2, X } from "lucide-react";
 import type { StoryDetailResponse, StorySummariesResponse, LifecycleStage } from "@/types/stories";
 
@@ -18,6 +19,7 @@ export default function StageDeepLinkPage({ params }: StageDeepLinkPageProps) {
     currentProjectId,
     setCurrentProject,
     setCurrentStageIndex,
+    setExpandedStageSlug,
     setStory,
     getStory,
     stories,
@@ -60,13 +62,14 @@ export default function StageDeepLinkPage({ params }: StageDeepLinkPageProps) {
     const story = stories.get(projectId);
     if (!story) return;
 
-    const stageIndex = story.stages.findIndex(
-      (s) => s.slug === (stageSlug as LifecycleStage)
-    );
+    const slug = stageSlug as LifecycleStage;
+    const stageIndex = story.stages.findIndex((s) => s.slug === slug);
     if (stageIndex >= 0) {
       setCurrentStageIndex(stageIndex);
+      // Also set expanded stage for desktop view
+      setExpandedStageSlug(slug);
     }
-  }, [projectId, stageSlug, stories, setCurrentStageIndex]);
+  }, [projectId, stageSlug, stories, setCurrentStageIndex, setExpandedStageSlug]);
 
   // Fetch summaries for navigation
   useEffect(() => {
@@ -84,31 +87,51 @@ export default function StageDeepLinkPage({ params }: StageDeepLinkPageProps) {
     fetchSummaries();
   }, [projectSummaries.length, setProjectSummaries]);
 
+  const handleSelectProject = useCallback(
+    (id: string) => {
+      setCurrentProject(id);
+      router.push(`/stories/${id}`);
+    },
+    [setCurrentProject, router]
+  );
+
   if (isLoading && !getStory(projectId)) {
     return (
-      <div className="h-full flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950">
-        <Loader2 className="h-8 w-8 text-white/50 animate-spin" />
-      </div>
+      <>
+        <div className="lg:hidden h-full flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950">
+          <Loader2 className="h-8 w-8 text-white/50 animate-spin" />
+        </div>
+        <div className="hidden lg:flex h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="h-full relative">
-      <div className="absolute top-[env(safe-area-inset-top,8px)] right-3 z-50">
-        <button
-          onClick={() => router.back()}
-          className="p-2 rounded-full bg-black/30 backdrop-blur-sm text-white/80 hover:text-white hover:bg-black/50 transition-colors"
-          data-no-tap
-        >
-          <X className="h-4 w-4" />
-        </button>
+    <>
+      {/* Mobile: full-screen immersive */}
+      <div className="lg:hidden h-full relative">
+        <div className="absolute top-[env(safe-area-inset-top,8px)] right-3 z-50">
+          <button
+            onClick={() => router.back()}
+            className="p-2 rounded-full bg-black/30 backdrop-blur-sm text-white/80 hover:text-white hover:bg-black/50 transition-colors"
+            data-no-tap
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <StoryShell />
       </div>
 
-      <div className="h-full lg:flex lg:items-center lg:justify-center lg:bg-slate-950">
-        <div className="h-full w-full lg:w-[390px] lg:h-[calc(100%-40px)] lg:max-h-[844px] lg:rounded-[40px] lg:border-4 lg:border-white/10 lg:overflow-hidden lg:shadow-2xl">
-          <StoryShell />
-        </div>
+      {/* Desktop: blog-style card layout */}
+      <div className="hidden lg:block">
+        <DesktopStoryView
+          projects={projectSummaries}
+          currentProjectId={currentProjectId}
+          onSelectProject={handleSelectProject}
+        />
       </div>
-    </div>
+    </>
   );
 }
