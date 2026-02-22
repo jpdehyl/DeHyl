@@ -7,7 +7,6 @@ import { useAppStore } from "@/lib/store";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const navItems = [
-  { title: "Dashboard", href: "/" },
   { title: "Projects", href: "/projects" },
   { title: "Stories", href: "/stories" },
   { title: "Costs", href: "/expenses" },
@@ -32,9 +31,13 @@ export function Sidebar() {
             sidebarOpen ? "justify-between px-5" : "justify-center"
           )}
         >
-          {sidebarOpen && (
+          {sidebarOpen ? (
             <Link href="/" className="font-serif text-lg font-semibold tracking-tight text-foreground">
               DeHyl
+            </Link>
+          ) : (
+            <Link href="/" className="font-serif text-sm font-semibold text-foreground" title="Dashboard">
+              D
             </Link>
           )}
           <button
