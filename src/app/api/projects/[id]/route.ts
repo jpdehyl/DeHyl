@@ -123,6 +123,7 @@ export async function GET(
     status: bill.status as "open" | "paid" | "overdue",
     projectId: bill.project_id,
     memo: bill.memo,
+    manualOverride: bill.manual_override ?? false,
     syncedAt: bill.synced_at ? new Date(bill.synced_at) : new Date(),
   }));
 

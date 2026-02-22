@@ -95,6 +95,7 @@ export interface Bill {
   status: 'open' | 'paid' | 'overdue';
   projectId: string | null;
   memo: string | null;
+  manualOverride: boolean;
   syncedAt: Date;
 }
 

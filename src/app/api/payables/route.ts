@@ -20,6 +20,7 @@ export async function GET() {
       status,
       project_id,
       memo,
+      manual_override,
       synced_at
     `)
     .gt("balance", 0)
@@ -55,6 +56,7 @@ export async function GET() {
     status: bill.status as Bill["status"],
     projectId: bill.project_id,
     memo: bill.memo,
+    manualOverride: bill.manual_override ?? false,
     syncedAt: new Date(bill.synced_at),
   }));
 

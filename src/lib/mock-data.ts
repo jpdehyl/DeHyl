@@ -372,6 +372,7 @@ export const mockBills: Bill[] = [
     status: "open",
     projectId: "p1",
     memo: "Disposal fees - PetroCan",
+    manualOverride: false,
     syncedAt: new Date("2026-01-19"),
   },
   {
@@ -385,6 +386,7 @@ export const mockBills: Bill[] = [
     status: "open",
     projectId: "p7",
     memo: "Excavator rental - Surrey",
+    manualOverride: false,
     syncedAt: new Date("2026-01-19"),
   },
   {
@@ -398,6 +400,7 @@ export const mockBills: Bill[] = [
     status: "open",
     projectId: null,
     memo: "Safety supplies",
+    manualOverride: false,
     syncedAt: new Date("2026-01-19"),
   },
   {
@@ -411,6 +414,7 @@ export const mockBills: Bill[] = [
     status: "open",
     projectId: null,
     memo: "Monthly power - Shop",
+    manualOverride: false,
     syncedAt: new Date("2026-01-19"),
   },
   {
@@ -424,6 +428,7 @@ export const mockBills: Bill[] = [
     status: "overdue",
     projectId: "p6",
     memo: "Equipment repair",
+    manualOverride: false,
     syncedAt: new Date("2026-01-19"),
   },
   {
@@ -437,6 +442,7 @@ export const mockBills: Bill[] = [
     status: "open",
     projectId: null,
     memo: "Q1 2026 Premium",
+    manualOverride: false,
     syncedAt: new Date("2026-01-19"),
   },
 ];
