@@ -7,7 +7,7 @@ import { StoryBubbles } from "@/components/stories/StoryBubbles";
 import { StoryShell } from "@/components/stories/StoryShell";
 import { DesktopStoryView } from "@/components/stories/desktop/DesktopStoryView";
 import { Loader2, X } from "lucide-react";
-import type { StorySummariesResponse, StoryDetailResponse } from "@/types/stories";
+import type { StorySummariesResponse, StoryDetailResponse, SmartFeedResponse } from "@/types/stories";
 
 export default function StoriesPage() {
   const router = useRouter();
@@ -19,9 +19,12 @@ export default function StoriesPage() {
     setStory,
     isLoading,
     setIsLoading,
+    setFeedCards,
+    setFeedLoading,
+    setUpcomingProjects,
   } = useStoryStore();
 
-  // Fetch project summaries
+  // Fetch project summaries + smart feed in parallel
   useEffect(() => {
     async function fetchSummaries() {
       try {
@@ -41,7 +44,24 @@ export default function StoriesPage() {
         setIsLoading(false);
       }
     }
+
+    async function fetchFeed() {
+      try {
+        setFeedLoading(true);
+        const res = await fetch("/api/stories/feed");
+        if (!res.ok) throw new Error("Failed to fetch feed");
+        const data: SmartFeedResponse = await res.json();
+        setFeedCards(data.cards);
+        setUpcomingProjects(data.upcomingBids);
+      } catch (err) {
+        console.error("Failed to fetch smart feed:", err);
+      } finally {
+        setFeedLoading(false);
+      }
+    }
+
     fetchSummaries();
+    fetchFeed();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch story detail when project changes

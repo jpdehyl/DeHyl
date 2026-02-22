@@ -98,3 +98,71 @@ export interface StoryNavigationState {
   projectIds: string[];
   direction: 'up' | 'down' | 'left' | 'right' | null;
 }
+
+// ===========================================
+// Smart Feed ("For You") Types
+// ===========================================
+
+export type FeedCardType =
+  | 'overdue_invoice'
+  | 'negative_profit'
+  | 'bill_due_soon'
+  | 'aging_receivable'
+  | 'stalled_project'
+  | 'missing_estimate'
+  | 'unassigned_invoice'
+  | 'match_suggestion'
+  | 'daily_log'
+  | 'new_photos'
+  | 'cost_entry'
+  | 'invoice_activity'
+  | 'safety_checklist'
+  | 'project_progress'
+  | 'bid_update'
+  | 'crew_change'
+  | 'upcoming_bid'
+  | 'opportunity'; // Future: scraped bid invites
+
+export type FeedPriority = 'critical' | 'high' | 'medium' | 'info';
+
+export interface FeedCard {
+  id: string;
+  type: FeedCardType;
+  priority: FeedPriority;
+  title: string;
+  description: string;
+  timestamp: string; // ISO string from API
+  projectId?: string;
+  projectCode?: string;
+  clientName?: string;
+  amount?: number;
+  metadata: Record<string, unknown>;
+  actionUrl: string;
+  actionLabel: string;
+}
+
+export interface UpcomingProject {
+  id: string;
+  name: string;
+  clientCode: string | null;
+  clientName: string | null;
+  dueDate: string | null;
+  estimatedValue: number | null;
+  status: string;
+  location: string | null;
+}
+
+export interface SmartFeedResponse {
+  cards: FeedCard[];
+  generatedAt: string;
+  upcomingBids: UpcomingProject[];
+}
+
+// -------------------------------------------
+// Story Filter State
+// -------------------------------------------
+export interface StoryFilterState {
+  search: string;
+  status: 'all' | 'active' | 'closed';
+  clientCode: string | null;
+}

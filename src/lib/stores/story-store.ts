@@ -1,5 +1,14 @@
 import { create } from "zustand";
-import type { LifecycleStage, ProjectStory, ProjectStorySummary } from "@/types/stories";
+import type {
+  LifecycleStage,
+  ProjectStory,
+  ProjectStorySummary,
+  FeedCard,
+  UpcomingProject,
+  StoryFilterState,
+} from "@/types/stories";
+
+type DesktopTab = "feed" | "projects" | "upcoming";
 
 interface StoryState {
   // Project summaries for bubbles
@@ -35,6 +44,24 @@ interface StoryState {
   // Desktop expanded stage
   expandedStageSlug: LifecycleStage | null;
   setExpandedStageSlug: (slug: LifecycleStage | null) => void;
+
+  // Smart Feed
+  feedCards: FeedCard[];
+  setFeedCards: (cards: FeedCard[]) => void;
+  feedLoading: boolean;
+  setFeedLoading: (loading: boolean) => void;
+
+  // Upcoming projects (bids)
+  upcomingProjects: UpcomingProject[];
+  setUpcomingProjects: (projects: UpcomingProject[]) => void;
+
+  // Active desktop tab
+  activeTab: DesktopTab;
+  setActiveTab: (tab: DesktopTab) => void;
+
+  // Filters
+  storyFilters: StoryFilterState;
+  setStoryFilter: <K extends keyof StoryFilterState>(key: K, value: StoryFilterState[K]) => void;
 
   // Loading
   isLoading: boolean;
@@ -159,6 +186,27 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     }
     set({ expandedStageSlug: slug, currentSubstepIndex: 0 });
   },
+
+  // Smart Feed
+  feedCards: [],
+  setFeedCards: (cards) => set({ feedCards: cards }),
+  feedLoading: false,
+  setFeedLoading: (loading) => set({ feedLoading: loading }),
+
+  // Upcoming projects
+  upcomingProjects: [],
+  setUpcomingProjects: (projects) => set({ upcomingProjects: projects }),
+
+  // Active tab
+  activeTab: "feed",
+  setActiveTab: (tab) => set({ activeTab: tab }),
+
+  // Filters
+  storyFilters: { search: "", status: "all", clientCode: null },
+  setStoryFilter: (key, value) =>
+    set((state) => ({
+      storyFilters: { ...state.storyFilters, [key]: value },
+    })),
 
   isLoading: false,
   setIsLoading: (loading) => set({ isLoading: loading }),
