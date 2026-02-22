@@ -52,14 +52,23 @@ export async function POST() {
       }).eq("provider", "google");
     });
 
-    // Get client mappings for resolving client names
+    // Get client mappings for resolving client names and aliases
     const { data: clientMappings } = await supabase
       .from("client_mappings")
-      .select("code, display_name");
+      .select("code, display_name, aliases");
 
     const clientNameMap = new Map(
       (clientMappings || []).map((m) => [m.code, m.display_name])
     );
+
+    // Build alias → canonical code lookup
+    const aliasToCode = new Map<string, string>();
+    for (const m of clientMappings || []) {
+      aliasToCode.set(m.code.toLowerCase(), m.code);
+      for (const alias of m.aliases || []) {
+        aliasToCode.set(alias.toLowerCase(), m.code);
+      }
+    }
 
     // List bid folders from the Bids folder
     const folders = await driveClient.listProjectFolders(BIDS_FOLDER_ID);
@@ -72,13 +81,14 @@ export async function POST() {
         return null;
       }
 
-      // Resolve client name from mapping
-      const clientName = clientNameMap.get(parsed.clientCode) || parsed.clientCode;
+      // Resolve client code via alias lookup, then get display name
+      const canonicalCode = aliasToCode.get(parsed.clientCode.toLowerCase()) || parsed.clientCode;
+      const clientName = clientNameMap.get(canonicalCode) || parsed.clientCode;
 
       return {
         drive_folder_id: folder.id,
         name: parsed.name,
-        client_code: parsed.clientCode,
+        client_code: canonicalCode,
         client_name: clientName,
         status: "draft", // New bids default to draft
       };

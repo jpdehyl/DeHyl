@@ -166,13 +166,21 @@ export async function GET(request: NextRequest) {
         }).eq("provider", "google");
       });
 
-      // Get client mappings
+      // Get client mappings with aliases
       const { data: clientMappings } = await supabase
         .from("client_mappings")
-        .select("code, display_name");
+        .select("code, display_name, aliases");
       const clientNameMap = new Map(
         (clientMappings || []).map((m) => [m.code, m.display_name])
       );
+      // Build alias → canonical code lookup
+      const aliasToCode = new Map<string, string>();
+      for (const m of clientMappings || []) {
+        aliasToCode.set(m.code.toLowerCase(), m.code);
+        for (const alias of (m.aliases || []) as string[]) {
+          aliasToCode.set(alias.toLowerCase(), m.code);
+        }
+      }
 
       // List and process folders
       const folders = await driveClient.listProjectFolders();
@@ -182,11 +190,12 @@ export async function GET(request: NextRequest) {
           if (!parsed) return null;
           const hasEstimate = await driveClient.hasEstimateFolder(folder.id);
           const hasPBS = await driveClient.hasPBSFile(folder.id);
-          const clientName = clientNameMap.get(parsed.clientCode) || parsed.clientCode;
+          const canonicalCode = aliasToCode.get(parsed.clientCode.toLowerCase()) || parsed.clientCode;
+          const clientName = clientNameMap.get(canonicalCode) || parsed.clientCode;
           return {
             drive_id: folder.id,
             code: parsed.code,
-            client_code: parsed.clientCode,
+            client_code: canonicalCode,
             client_name: clientName,
             description: parsed.description,
             status: "active",
