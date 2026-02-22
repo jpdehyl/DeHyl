@@ -28,6 +28,16 @@ interface QBBill {
   PrivateNote?: string;
 }
 
+interface SyncConflict {
+  source: string;
+  entity_type: string;
+  entity_id: string;
+  external_id: string;
+  field_name: string;
+  app_value: string | null;
+  external_value: string | null;
+}
+
 export async function GET(request: NextRequest) {
   // Verify cron secret in production
   if (CRON_SECRET) {
@@ -43,8 +53,8 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
   const results = {
-    quickbooks: { success: false, invoices: 0, bills: 0, error: null as string | null },
-    googleDrive: { success: false, projects: 0, error: null as string | null },
+    quickbooks: { success: false, invoices: 0, bills: 0, conflicts: 0, error: null as string | null },
+    googleDrive: { success: false, projects: 0, conflicts: 0, error: null as string | null },
   };
 
   // Sync QuickBooks (skip if source filter is set to google_drive only)
@@ -62,6 +72,8 @@ export async function GET(request: NextRequest) {
         expiresAt: new Date(qbToken.expires_at),
         realmId: qbToken.realm_id,
       });
+
+      const conflicts: SyncConflict[] = [];
 
       // Sync invoices
       const invoices = (await qbClient.getOpenInvoices()) as unknown as QBInvoice[];
@@ -84,7 +96,73 @@ export async function GET(request: NextRequest) {
       });
 
       if (mappedInvoices.length > 0) {
-        await supabase.from("invoices").upsert(mappedInvoices, { onConflict: "qb_id" });
+        // Get invoices with manual_override to handle separately
+        const { data: overriddenInvoices } = await supabase
+          .from("invoices")
+          .select("id, qb_id, project_id, client_name, amount")
+          .eq("manual_override", true);
+
+        const overriddenInvoiceMap = new Map(
+          (overriddenInvoices || []).map((inv) => [inv.qb_id, inv])
+        );
+
+        // Split into overridden vs normal
+        const invoicesToUpsert = mappedInvoices.filter(
+          (inv) => !overriddenInvoiceMap.has(inv.qb_id)
+        );
+        const overriddenInvoiceUpdates = mappedInvoices.filter(
+          (inv) => overriddenInvoiceMap.has(inv.qb_id)
+        );
+
+        // For overridden invoices: update financial fields only, detect conflicts
+        for (const inv of overriddenInvoiceUpdates) {
+          const existing = overriddenInvoiceMap.get(inv.qb_id)!;
+
+          if (
+            existing.client_name &&
+            inv.client_name.toLowerCase() !== existing.client_name.toLowerCase()
+          ) {
+            conflicts.push({
+              source: "quickbooks",
+              entity_type: "invoice",
+              entity_id: existing.id,
+              external_id: inv.qb_id,
+              field_name: "client_name",
+              app_value: existing.client_name,
+              external_value: inv.client_name,
+            });
+          }
+
+          if (existing.amount !== null && inv.amount !== existing.amount) {
+            conflicts.push({
+              source: "quickbooks",
+              entity_type: "invoice",
+              entity_id: existing.id,
+              external_id: inv.qb_id,
+              field_name: "amount",
+              app_value: String(existing.amount),
+              external_value: String(inv.amount),
+            });
+          }
+
+          await supabase
+            .from("invoices")
+            .update({
+              invoice_number: inv.invoice_number,
+              amount: inv.amount,
+              balance: inv.balance,
+              issue_date: inv.issue_date,
+              due_date: inv.due_date,
+              status: inv.status,
+              memo: inv.memo,
+              synced_at: inv.synced_at,
+            })
+            .eq("qb_id", inv.qb_id);
+        }
+
+        if (invoicesToUpsert.length > 0) {
+          await supabase.from("invoices").upsert(invoicesToUpsert, { onConflict: "qb_id" });
+        }
       }
 
       // Sync bills
@@ -107,18 +185,77 @@ export async function GET(request: NextRequest) {
       });
 
       if (mappedBills.length > 0) {
-        // Get bills with manual_override to exclude from sync
+        // Get bills with manual_override to handle separately
         const { data: overriddenBills } = await supabase
           .from("bills")
-          .select("qb_id")
+          .select("id, qb_id, project_id, vendor_name, amount")
           .eq("manual_override", true);
 
-        const overriddenQbIds = new Set((overriddenBills || []).map((b: { qb_id: string }) => b.qb_id));
-        const billsToSync = mappedBills.filter((b) => !overriddenQbIds.has(b.qb_id));
+        const overriddenBillMap = new Map(
+          (overriddenBills || []).map((b: { qb_id: string; id: string; project_id: string | null; vendor_name: string; amount: number }) => [b.qb_id, b])
+        );
 
-        if (billsToSync.length > 0) {
-          await supabase.from("bills").upsert(billsToSync, { onConflict: "qb_id" });
+        // Split into overridden vs normal
+        const billsToUpsert = mappedBills.filter(
+          (b) => !overriddenBillMap.has(b.qb_id)
+        );
+        const overriddenBillUpdates = mappedBills.filter(
+          (b) => overriddenBillMap.has(b.qb_id)
+        );
+
+        // For overridden bills: update financial fields only, detect conflicts
+        for (const bill of overriddenBillUpdates) {
+          const existing = overriddenBillMap.get(bill.qb_id)!;
+
+          if (
+            existing.vendor_name &&
+            bill.vendor_name.toLowerCase() !== existing.vendor_name.toLowerCase()
+          ) {
+            conflicts.push({
+              source: "quickbooks",
+              entity_type: "bill",
+              entity_id: existing.id,
+              external_id: bill.qb_id,
+              field_name: "vendor_name",
+              app_value: existing.vendor_name,
+              external_value: bill.vendor_name,
+            });
+          }
+
+          if (existing.amount !== null && bill.amount !== existing.amount) {
+            conflicts.push({
+              source: "quickbooks",
+              entity_type: "bill",
+              entity_id: existing.id,
+              external_id: bill.qb_id,
+              field_name: "amount",
+              app_value: String(existing.amount),
+              external_value: String(bill.amount),
+            });
+          }
+
+          await supabase
+            .from("bills")
+            .update({
+              amount: bill.amount,
+              balance: bill.balance,
+              bill_date: bill.bill_date,
+              due_date: bill.due_date,
+              status: bill.status,
+              memo: bill.memo,
+              synced_at: bill.synced_at,
+            })
+            .eq("qb_id", bill.qb_id);
         }
+
+        if (billsToUpsert.length > 0) {
+          await supabase.from("bills").upsert(billsToUpsert, { onConflict: "qb_id" });
+        }
+      }
+
+      // Log any detected conflicts
+      if (conflicts.length > 0) {
+        await supabase.from("sync_conflicts").insert(conflicts);
       }
 
       // Log sync
@@ -129,7 +266,13 @@ export async function GET(request: NextRequest) {
         completed_at: new Date().toISOString(),
       });
 
-      results.quickbooks = { success: true, invoices: invoices.length, bills: bills.length, error: null };
+      results.quickbooks = {
+        success: true,
+        invoices: invoices.length,
+        bills: bills.length,
+        conflicts: conflicts.length,
+        error: null,
+      };
     }
   } catch (error) {
     results.quickbooks.error = error instanceof Error ? error.message : "Unknown error";
@@ -206,8 +349,46 @@ export async function GET(request: NextRequest) {
       );
 
       const validProjects = projects.filter((p) => p !== null);
+
+      // Detect conflicts for projects that have been modified in the app
+      const driveConflicts: SyncConflict[] = [];
       if (validProjects.length > 0) {
+        // Get existing projects that may have user modifications
+        const driveIds = validProjects.map((p) => p.drive_id);
+        const { data: existingProjects } = await supabase
+          .from("projects")
+          .select("id, drive_id, status, client_name, description")
+          .in("drive_id", driveIds);
+
+        const existingMap = new Map(
+          (existingProjects || []).map((p) => [p.drive_id, p])
+        );
+
+        // Check for status conflicts (user may have closed a project)
+        for (const proj of validProjects) {
+          const existing = existingMap.get(proj.drive_id);
+          if (!existing) continue;
+
+          // If user set project to 'closed' in app but Drive still shows it, don't reopen
+          if (existing.status === "closed" && proj.status === "active") {
+            proj.status = "closed"; // Preserve user's closed status
+            driveConflicts.push({
+              source: "google_drive",
+              entity_type: "project",
+              entity_id: existing.id,
+              external_id: proj.drive_id,
+              field_name: "status",
+              app_value: "closed",
+              external_value: "active",
+            });
+          }
+        }
+
         await supabase.from("projects").upsert(validProjects, { onConflict: "drive_id" });
+
+        if (driveConflicts.length > 0) {
+          await supabase.from("sync_conflicts").insert(driveConflicts);
+        }
       }
 
       // Log sync
@@ -218,7 +399,12 @@ export async function GET(request: NextRequest) {
         completed_at: new Date().toISOString(),
       });
 
-      results.googleDrive = { success: true, projects: validProjects.length, error: null };
+      results.googleDrive = {
+        success: true,
+        projects: validProjects.length,
+        conflicts: driveConflicts.length,
+        error: null,
+      };
     }
   } catch (error) {
     results.googleDrive.error = error instanceof Error ? error.message : "Unknown error";

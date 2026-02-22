@@ -105,13 +105,60 @@ export async function POST() {
     // Filter out null values (unparseable folders)
     const validProjects = projects.filter((p) => p !== null);
 
+    interface SyncConflict {
+      source: string;
+      entity_type: string;
+      entity_id: string;
+      external_id: string;
+      field_name: string;
+      app_value: string | null;
+      external_value: string | null;
+    }
+    const conflicts: SyncConflict[] = [];
+
     if (validProjects.length > 0) {
+      // Get existing projects to detect conflicts with user modifications
+      const driveIds = validProjects.map((p) => p.drive_id);
+      const { data: existingProjects } = await supabase
+        .from("projects")
+        .select("id, drive_id, status, client_name, description")
+        .in("drive_id", driveIds);
+
+      const existingMap = new Map(
+        (existingProjects || []).map((p) => [p.drive_id, p])
+      );
+
+      // Check for conflicts and preserve user modifications
+      for (const proj of validProjects) {
+        const existing = existingMap.get(proj.drive_id);
+        if (!existing) continue;
+
+        // If user set project to 'closed' in app but Drive still shows it, don't reopen
+        if (existing.status === "closed" && proj.status === "active") {
+          proj.status = "closed"; // Preserve user's closed status
+          conflicts.push({
+            source: "google_drive",
+            entity_type: "project",
+            entity_id: existing.id,
+            external_id: proj.drive_id,
+            field_name: "status",
+            app_value: "closed",
+            external_value: "active",
+          });
+        }
+      }
+
       const { error: projectError } = await supabase
         .from("projects")
         .upsert(validProjects, { onConflict: "drive_id" });
 
       if (projectError) {
         console.error("Failed to upsert projects:", projectError);
+      }
+
+      // Log any detected conflicts
+      if (conflicts.length > 0) {
+        await supabase.from("sync_conflicts").insert(conflicts);
       }
     }
 
@@ -131,6 +178,7 @@ export async function POST() {
       success: true,
       projects_synced: validProjects.length,
       skipped: folders.length - validProjects.length,
+      conflicts_detected: conflicts.length,
     });
   } catch (error) {
     console.error("Project sync error:", error);
