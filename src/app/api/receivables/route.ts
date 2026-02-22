@@ -22,6 +22,7 @@ export async function GET() {
       project_id,
       match_confidence,
       memo,
+      manual_override,
       synced_at
     `)
     .gt("balance", 0)
@@ -59,6 +60,7 @@ export async function GET() {
     projectId: inv.project_id,
     matchConfidence: inv.match_confidence as InvoiceWithSuggestions["matchConfidence"],
     memo: inv.memo,
+    manualOverride: inv.manual_override ?? false,
     syncedAt: new Date(inv.synced_at),
     matchSuggestions: [], // Will be populated by matching engine in future
   }));

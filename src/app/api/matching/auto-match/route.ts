@@ -74,6 +74,7 @@ export async function POST() {
       projectId: inv.project_id,
       matchConfidence: inv.match_confidence,
       memo: inv.memo,
+      manualOverride: inv.manual_override ?? false,
       syncedAt: new Date(inv.synced_at),
     }));
 
