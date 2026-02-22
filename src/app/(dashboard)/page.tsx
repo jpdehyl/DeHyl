@@ -208,171 +208,205 @@ export default async function DashboardPage() {
   });
 
   const totalOutstanding = arAging.current + arAging.days1to30 + arAging.days31to60 + arAging.days61to90 + arAging.days90plus;
-  const hasAlerts = overdueData.urgent.length > 0 || overdueData.warning.length > 0 || unassignedHours.totalEntries > 0 || unbilledExpenses.totalEntries > 0;
+  const totalOverdue = arAging.days1to30 + arAging.days31to60 + arAging.days61to90 + arAging.days90plus;
+  const allAttentionItems = [
+    ...overdueData.urgent.map((c: any) => ({ ...c, severity: 'urgent' as const })),
+    ...overdueData.warning.map((c: any) => ({ ...c, severity: 'warning' as const })),
+  ];
+
+  const briefingParts: string[] = [];
+  if (activeProjectsToday > 0) {
+    briefingParts.push(`${activeProjectsToday} crew${activeProjectsToday !== 1 ? 's' : ''} deployed today`);
+  } else {
+    briefingParts.push("No crews deployed today");
+  }
+  if (totalOverdue > 0) {
+    briefingParts.push(`${formatCurrency(totalOverdue)} overdue`);
+  }
+  if (unbilledExpenses.totalEntries > 0) {
+    briefingParts.push(`${formatCurrency(unbilledExpenses.totalAmount)} in unbilled expenses`);
+  }
+  if (unassignedHours.totalEntries > 0) {
+    briefingParts.push(`${unassignedHours.totalHours.toFixed(0)}h unassigned`);
+  }
+  const briefingSummary = briefingParts.join(". ") + ".";
 
   return (
     <div className="min-h-screen bg-background">
       <Header title="Command Center" description="DeHyl Demolition" />
 
-      <div className="max-w-3xl mx-auto px-6 py-8 space-y-12">
+      <div className="max-w-2xl mx-auto px-6 pt-12 pb-24 space-y-16">
 
-        <section>
-          <p className="text-muted-foreground text-sm">{today}</p>
-          <div className="flex items-baseline gap-6 mt-1">
-            <p className="text-sm">
-              <span className="font-medium">{activeProjectsToday}</span>
-              <span className="text-muted-foreground"> crew deployed</span>
+        {/* Hero — The Headline */}
+        <section className="space-y-6">
+          <p className="text-sm tracking-wide text-muted-foreground uppercase">{today}</p>
+
+          <div>
+            <p className={`font-serif text-5xl md:text-6xl font-semibold tracking-tight tabular-nums leading-none ${cashPosition.netPosition >= 0 ? 'text-foreground' : 'text-red-600 dark:text-red-400'}`}>
+              {formatCurrency(cashPosition.netPosition)}
             </p>
-            <p className="text-sm text-muted-foreground">{weather.trim()}</p>
+            <p className="text-sm text-muted-foreground mt-3">net position</p>
           </div>
+
+          <p className="text-base leading-relaxed text-muted-foreground max-w-md">
+            {briefingSummary}
+          </p>
+
+          <p className="text-xs text-muted-foreground/60">{weather.trim()}</p>
         </section>
 
-        {hasAlerts && (
-          <section>
-            <h2 className="text-xl font-semibold mb-4">Needs attention</h2>
-            <div className="space-y-3">
-              {unassignedHours.totalEntries > 0 && (
-                <div className="flex items-baseline justify-between py-3 border-b border-border">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {unassignedHours.totalHours.toFixed(1)} hours unassigned
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {unassignedHours.totalEntries} timesheet {unassignedHours.totalEntries === 1 ? 'entry needs' : 'entries need'} project assignment
-                    </p>
-                  </div>
-                  <Link href="/timesheets?status=unassigned" className="text-xs font-medium text-foreground hover:underline">
-                    Assign
-                  </Link>
-                </div>
-              )}
-              {unbilledExpenses.totalEntries > 0 && (
-                <div className="flex items-baseline justify-between py-3 border-b border-border">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {formatCurrency(unbilledExpenses.totalAmount)} unbilled
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {unbilledExpenses.totalEntries} expenses not yet on an invoice
-                    </p>
-                  </div>
-                  <Link href="/expenses?status=unlinked" className="text-xs font-medium text-foreground hover:underline">
-                    Link
-                  </Link>
-                </div>
-              )}
-              {overdueData.urgent.map((client: any) => (
-                <div key={client.name} className="flex items-baseline justify-between py-3 border-b border-border">
-                  <div>
-                    <p className="text-sm font-medium">{client.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatCurrency(client.totalOverdue)} overdue &middot; {client.invoiceCount} invoice{client.invoiceCount !== 1 ? 's' : ''} &middot; {client.oldestDays} days
-                    </p>
-                  </div>
-                  <span className="text-xs font-medium text-destructive">Urgent</span>
-                </div>
-              ))}
-              {overdueData.warning.map((client: any) => (
-                <div key={client.name} className="flex items-baseline justify-between py-3 border-b border-border">
-                  <div>
-                    <p className="text-sm font-medium">{client.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatCurrency(client.totalOverdue)} overdue &middot; {client.invoiceCount} invoice{client.invoiceCount !== 1 ? 's' : ''} &middot; {client.oldestDays} days
-                    </p>
-                  </div>
-                  <span className="text-xs text-warning">Watch</span>
-                </div>
-              ))}
+        {/* Attention — Feature Stories */}
+        {(allAttentionItems.length > 0 || unassignedHours.totalEntries > 0 || unbilledExpenses.totalEntries > 0) && (
+          <section className="space-y-8">
+            <div className="flex items-center gap-4">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              <h2 className="font-serif text-2xl font-semibold tracking-tight">Needs your attention</h2>
             </div>
+
+            {allAttentionItems.map((client: any) => (
+              <Link
+                key={client.name}
+                href="/receivables"
+                className="block group"
+              >
+                <div className="pl-6 border-l-2 border-red-200 dark:border-red-900 py-1">
+                  <p className="text-lg font-medium group-hover:underline decoration-1 underline-offset-4">
+                    {client.name}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {formatCurrency(client.totalOverdue)} across {client.invoiceCount} invoice{client.invoiceCount !== 1 ? 's' : ''},
+                    oldest {client.oldestDays} days ago
+                  </p>
+                </div>
+              </Link>
+            ))}
+
+            {unassignedHours.totalEntries > 0 && (
+              <Link href="/timesheets?status=unassigned" className="block group">
+                <div className="pl-6 border-l-2 border-amber-200 dark:border-amber-900 py-1">
+                  <p className="text-lg font-medium group-hover:underline decoration-1 underline-offset-4">
+                    {unassignedHours.totalHours.toFixed(0)} hours need assignment
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {unassignedHours.totalEntries} timesheet {unassignedHours.totalEntries === 1 ? 'entry' : 'entries'} waiting
+                  </p>
+                </div>
+              </Link>
+            )}
+
+            {unbilledExpenses.totalEntries > 0 && (
+              <Link href="/expenses?status=unlinked" className="block group">
+                <div className="pl-6 border-l-2 border-amber-200 dark:border-amber-900 py-1">
+                  <p className="text-lg font-medium group-hover:underline decoration-1 underline-offset-4">
+                    {formatCurrency(unbilledExpenses.totalAmount)} not yet invoiced
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {unbilledExpenses.totalEntries} expense{unbilledExpenses.totalEntries !== 1 ? 's' : ''} to link
+                  </p>
+                </div>
+              </Link>
+            )}
           </section>
         )}
 
-        <section>
-          <div className="flex items-baseline justify-between mb-4">
-            <h2 className="text-xl font-semibold">Active projects</h2>
-            <Link href="/projects" className="text-xs text-muted-foreground hover:text-foreground">
-              All projects
+        {/* Projects — Editorial Feed */}
+        <section className="space-y-6">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-serif text-2xl font-semibold tracking-tight">Projects</h2>
+            <Link href="/projects" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              View all
             </Link>
           </div>
-          <div className="space-y-0">
-            {activeProjects.slice(0, 8).map((project: any) => (
+
+          <div className="space-y-6">
+            {activeProjects.slice(0, 5).map((project: any) => (
               <Link
                 key={project.id}
                 href={`/projects/${project.id}`}
-                className="flex items-baseline justify-between py-3 border-b border-border group"
+                className="block group"
               >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-mono text-sm font-medium">{project.code}</span>
-                    <span className="text-sm text-muted-foreground truncate">
-                      {project.client_name || project.client_code}
-                    </span>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium group-hover:underline decoration-1 underline-offset-4">
+                      {project.description || project.client_name || project.client_code}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                      {project.updateSnippet}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {project.updateSnippet}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 ml-4 shrink-0">
-                  <span className="text-xs text-muted-foreground">
-                    {getRelativeTime(project.lastUpdate)}
-                  </span>
-                  <div
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      project.status === 'fresh' ? 'bg-green-500' :
-                      project.status === 'aging' ? 'bg-amber-400' : 'bg-red-400'
-                    }`}
-                  />
+                  <div className="flex items-center gap-2.5 shrink-0 pt-0.5">
+                    <span className="text-xs text-muted-foreground/70">
+                      {getRelativeTime(project.lastUpdate)}
+                    </span>
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        project.status === 'fresh' ? 'bg-emerald-400' :
+                        project.status === 'aging' ? 'bg-amber-300' : 'bg-red-300'
+                      }`}
+                    />
+                  </div>
                 </div>
               </Link>
             ))}
           </div>
-          {activeProjects.length > 8 && (
-            <p className="text-xs text-muted-foreground mt-3">
-              +{activeProjects.length - 8} more
-            </p>
-          )}
         </section>
 
-        <section>
-          <h2 className="text-xl font-semibold mb-4">Collections</h2>
-          <div className="grid grid-cols-5 gap-px bg-border rounded-lg overflow-hidden">
-            {[
-              { label: "Current", amount: arAging.current },
-              { label: "1-30 d", amount: arAging.days1to30 },
-              { label: "31-60 d", amount: arAging.days31to60 },
-              { label: "61-90 d", amount: arAging.days61to90 },
-              { label: "90+ d", amount: arAging.days90plus },
-            ].map((bucket) => (
-              <div key={bucket.label} className="bg-background p-3 text-center">
-                <p className="text-sm font-medium tabular-nums">{formatCurrency(bucket.amount)}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{bucket.label}</p>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-baseline justify-between mt-3 text-xs text-muted-foreground">
-            <span>Total outstanding: {formatCurrency(totalOutstanding)}</span>
-            <Link href="/receivables" className="hover:text-foreground">View all</Link>
-          </div>
-        </section>
+        {/* Money — Typographic Display */}
+        <section className="space-y-10">
+          <h2 className="font-serif text-2xl font-semibold tracking-tight">Money</h2>
 
-        <section>
-          <h2 className="text-xl font-semibold mb-4">Cash position</h2>
-          <div className="grid grid-cols-3 gap-px bg-border rounded-lg overflow-hidden">
-            <div className="bg-background p-4 text-center">
-              <p className="text-lg font-medium tabular-nums">{formatCurrency(cashPosition.totalReceivables)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Receivables</p>
-            </div>
-            <div className="bg-background p-4 text-center">
-              <p className="text-lg font-medium tabular-nums">{formatCurrency(cashPosition.totalPayables)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Payables</p>
-            </div>
-            <div className="bg-background p-4 text-center">
-              <p className={`text-lg font-medium tabular-nums ${cashPosition.netPosition >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {formatCurrency(cashPosition.netPosition)}
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Receivables</p>
+              <p className="font-serif text-3xl font-semibold tabular-nums tracking-tight mt-1">
+                {formatCurrency(cashPosition.totalReceivables)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Net</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Payables</p>
+              <p className="font-serif text-3xl font-semibold tabular-nums tracking-tight mt-1">
+                {formatCurrency(cashPosition.totalPayables)}
+              </p>
             </div>
           </div>
+
+          {totalOutstanding > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-baseline justify-between">
+                <p className="text-sm text-muted-foreground">Aging</p>
+                <Link href="/receivables" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  Details
+                </Link>
+              </div>
+
+              <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-muted/30">
+                {[
+                  { amount: arAging.current, color: 'bg-emerald-400/70' },
+                  { amount: arAging.days1to30, color: 'bg-amber-300/70' },
+                  { amount: arAging.days31to60, color: 'bg-amber-400/70' },
+                  { amount: arAging.days61to90, color: 'bg-red-300/70' },
+                  { amount: arAging.days90plus, color: 'bg-red-500/70' },
+                ].map((bucket, i) => {
+                  const pct = totalOutstanding > 0 ? (bucket.amount / totalOutstanding) * 100 : 0;
+                  if (pct < 0.5) return null;
+                  return (
+                    <div
+                      key={i}
+                      className={`${bucket.color} rounded-full`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{formatCurrency(arAging.current)} current</span>
+                {totalOverdue > 0 && (
+                  <span>{formatCurrency(totalOverdue)} overdue</span>
+                )}
+              </div>
+            </div>
+          )}
         </section>
 
       </div>
