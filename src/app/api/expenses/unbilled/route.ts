@@ -39,11 +39,6 @@ export async function GET() {
           code,
           client_name,
           description
-        ),
-        invoices:invoice_id (
-          id,
-          invoice_number,
-          status
         )
       `)
       .eq('status', 'unlinked')

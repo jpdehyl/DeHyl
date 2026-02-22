@@ -24,11 +24,6 @@ export async function GET(request: NextRequest) {
           code,
           client_name,
           description
-        ),
-        invoices:invoice_id (
-          id,
-          invoice_number,
-          status
         )
       `)
       .order('cost_date', { ascending: false })
@@ -164,11 +159,6 @@ export async function POST(request: NextRequest) {
           code,
           client_name,
           description
-        ),
-        invoices:invoice_id (
-          id,
-          invoice_number,
-          status
         )
       `)
       .single();
