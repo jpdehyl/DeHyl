@@ -1,16 +1,10 @@
 "use client";
 
-import { useRef, useCallback, useMemo } from "react";
+import { useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useStoryStore } from "@/lib/stores/story-store";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ProjectTabBar } from "./ProjectTabBar";
-import { DesktopStoryHero } from "./DesktopStoryHero";
-import { StageCardGrid } from "./StageCardGrid";
-import { SmartFeed } from "./SmartFeed";
-import { StoryFilterBar } from "./StoryFilterBar";
-import { UpcomingProjectsSection } from "./UpcomingProjectsSection";
-import { ArrowLeft, Loader2, Sparkles, FolderKanban, Gavel } from "lucide-react";
+import { NarrativeStoryView } from "./NarrativeStoryView";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import type { ProjectStorySummary } from "@/types/stories";
 
 interface DesktopStoryViewProps {
@@ -25,134 +19,137 @@ export function DesktopStoryView({
   onSelectProject,
 }: DesktopStoryViewProps) {
   const router = useRouter();
-  const heroRef = useRef<HTMLDivElement>(null);
-  const { stories, isLoading, activeTab, setActiveTab, storyFilters } = useStoryStore();
+  const { stories, isLoading, feedCards, feedLoading } = useStoryStore();
 
   const story = currentProjectId ? stories.get(currentProjectId) : undefined;
 
-  const handleScrollToHero = useCallback(() => {
-    heroRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
+  const activeProjects = useMemo(
+    () => projects.filter((p) => p.status === "active"),
+    [projects]
+  );
+  const closedProjects = useMemo(
+    () => projects.filter((p) => p.status === "closed"),
+    [projects]
+  );
 
-  // Filtered projects for the Projects tab
-  const filteredProjects = useMemo(() => {
-    let result = projects;
-
-    // Status filter
-    if (storyFilters.status !== "all") {
-      result = result.filter((p) => p.status === storyFilters.status);
-    }
-
-    // Client code filter
-    if (storyFilters.clientCode) {
-      result = result.filter((p) => p.clientCode === storyFilters.clientCode);
-    }
-
-    // Search filter
-    if (storyFilters.search) {
-      const q = storyFilters.search.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.projectCode.toLowerCase().includes(q) ||
-          p.projectName.toLowerCase().includes(q) ||
-          p.clientName.toLowerCase().includes(q) ||
-          p.clientCode.toLowerCase().includes(q)
-      );
-    }
-
-    return result;
-  }, [projects, storyFilters]);
-
-  // Unique client codes for filter bar
-  const clientCodes = useMemo(() => {
-    const codes = new Set(projects.map((p) => p.clientCode).filter(Boolean));
-    return [...codes].sort();
-  }, [projects]);
+  const urgentItems = useMemo(
+    () => feedCards.filter((c) => c.priority === "critical" || c.priority === "high"),
+    [feedCards]
+  );
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Project Stories</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Track project lifecycle stages at a glance
-          </p>
+    <div className="max-w-3xl mx-auto px-6 py-10">
+      <header className="mb-10">
+        <div className="flex items-center justify-between mb-1">
+          <h1 className="text-3xl font-serif font-bold tracking-tight text-foreground">
+            Stories
+          </h1>
+          <button
+            onClick={() => router.push("/")}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back
+          </button>
         </div>
-        <button
-          onClick={() => router.push("/")}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Dashboard
-        </button>
-      </div>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          The life of each project, told chapter by chapter.
+        </p>
+      </header>
 
-      {/* Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(val) => setActiveTab(val as "feed" | "projects" | "upcoming")}
-      >
-        <TabsList>
-          <TabsTrigger value="feed" className="gap-1.5">
-            <Sparkles className="h-3.5 w-3.5" />
-            Smart Feed
-          </TabsTrigger>
-          <TabsTrigger value="projects" className="gap-1.5">
-            <FolderKanban className="h-3.5 w-3.5" />
-            Projects
-          </TabsTrigger>
-          <TabsTrigger value="upcoming" className="gap-1.5">
-            <Gavel className="h-3.5 w-3.5" />
-            Upcoming
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Smart Feed Tab */}
-        <TabsContent value="feed">
-          <SmartFeed />
-        </TabsContent>
-
-        {/* Projects Tab */}
-        <TabsContent value="projects">
-          {/* Filter bar */}
-          <StoryFilterBar clientCodes={clientCodes} />
-
-          {/* Project tabs */}
-          <div className="mt-4">
-            <ProjectTabBar
-              projects={filteredProjects}
-              currentProjectId={currentProjectId}
-              onSelectProject={onSelectProject}
-            />
-          </div>
-
-          {/* Hero section */}
-          <div ref={heroRef}>
-            {isLoading && !story ? (
-              <div className="mt-6 flex items-center justify-center h-64 rounded-xl border bg-card">
-                <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
-              </div>
-            ) : story ? (
-              <DesktopStoryHero story={story} />
-            ) : (
-              <div className="mt-6 flex items-center justify-center h-64 rounded-xl border bg-card">
-                <p className="text-muted-foreground">Select a project to view its story</p>
-              </div>
+      {urgentItems.length > 0 && !feedLoading && (
+        <div className="mb-10 border-l-2 border-amber-400 pl-4 py-1">
+          <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-2">
+            Needs attention
+          </p>
+          <div className="space-y-1.5">
+            {urgentItems.slice(0, 4).map((item) => (
+              <button
+                key={item.id}
+                onClick={() => router.push(item.actionUrl)}
+                className="block text-left w-full group"
+              >
+                <p className="text-sm text-foreground group-hover:text-primary transition-colors leading-snug">
+                  {item.title}
+                  {item.projectCode && (
+                    <span className="text-muted-foreground ml-1.5 text-xs">
+                      {item.projectCode}
+                    </span>
+                  )}
+                </p>
+              </button>
+            ))}
+            {urgentItems.length > 4 && (
+              <p className="text-xs text-muted-foreground">
+                +{urgentItems.length - 4} more
+              </p>
             )}
           </div>
+        </div>
+      )}
 
-          {/* Stage card grid */}
-          {story && (
-            <StageCardGrid story={story} onScrollToHero={handleScrollToHero} />
-          )}
-        </TabsContent>
+      <nav className="mb-10">
+        {activeProjects.length > 0 && (
+          <div className="mb-6">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+              Active Projects
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {activeProjects.map((p) => (
+                <button
+                  key={p.projectId}
+                  onClick={() => onSelectProject(p.projectId)}
+                  className={`px-3 py-1.5 rounded-full text-sm transition-all ${
+                    currentProjectId === p.projectId
+                      ? "bg-foreground text-background font-medium"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                  }`}
+                >
+                  {p.projectCode}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {closedProjects.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+              Completed
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {closedProjects.map((p) => (
+                <button
+                  key={p.projectId}
+                  onClick={() => onSelectProject(p.projectId)}
+                  className={`px-3 py-1.5 rounded-full text-sm transition-all ${
+                    currentProjectId === p.projectId
+                      ? "bg-foreground text-background font-medium"
+                      : "bg-muted/50 text-muted-foreground/70 hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  {p.projectCode}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </nav>
 
-        {/* Upcoming Tab */}
-        <TabsContent value="upcoming">
-          <UpcomingProjectsSection />
-        </TabsContent>
-      </Tabs>
+      <div className="border-t pt-10">
+        {isLoading && !story ? (
+          <div className="flex items-center justify-center h-48">
+            <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+          </div>
+        ) : story ? (
+          <NarrativeStoryView story={story} />
+        ) : (
+          <div className="text-center py-20">
+            <p className="text-muted-foreground text-sm">
+              Select a project above to read its story.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

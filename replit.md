@@ -52,5 +52,13 @@ Optional integrations:
 - Google Drive (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
 - Anthropic AI (`ANTHROPIC_API_KEY`)
 
+## Recent Changes (Feb 2026)
+- **Stories redesign**: Converted from tabbed dashboard to blog-style narrative layout (NarrativeStoryView, NarrativeStageSection components)
+- **Cost tracking resilience**: All expense/cost API endpoints gracefully handle missing `project_costs` table (PGRST205 error)
+- **Admin migration endpoint**: `/api/admin/migrate` (POST) checks table status and provides SQL to apply
+
+## Known Issue: project_costs table
+The `project_costs` table does not exist in the Supabase database yet. The migration SQL is in `supabase/migrations/00020_project_costs.sql`. It must be applied via the Supabase SQL Editor. Until then, cost/expense features return empty data gracefully. Hit `POST /api/admin/migrate` to get the SQL to paste into Supabase.
+
 ## Deployment
 Configured for autoscale deployment with `npm run build` and `npm run start`.

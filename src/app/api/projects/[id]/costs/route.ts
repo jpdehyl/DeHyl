@@ -15,6 +15,9 @@ export async function GET(
     .order("cost_date", { ascending: false });
 
   if (error) {
+    if (error.code === "PGRST205") {
+      return NextResponse.json({ costs: [], total: 0 });
+    }
     console.error("Error fetching project costs:", error);
     return NextResponse.json(
       { error: "Failed to fetch project costs" },
@@ -104,6 +107,12 @@ export async function POST(
     .single();
 
   if (error) {
+    if (error.code === "PGRST205") {
+      return NextResponse.json(
+        { error: "Cost tracking table not set up. Please run the database migration first." },
+        { status: 503 }
+      );
+    }
     console.error("Error creating project cost:", error);
     return NextResponse.json(
       { error: "Failed to create cost entry" },

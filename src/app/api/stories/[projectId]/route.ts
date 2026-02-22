@@ -11,7 +11,6 @@ export async function GET(
     const { projectId } = await params;
     const supabase = await createClient();
 
-    // Fan out all queries in parallel
     const [
       projectResult,
       estimatesResult,
@@ -19,7 +18,6 @@ export async function GET(
       dailyLogsResult,
       photosResult,
       invoicesResult,
-      costsResult,
     ] = await Promise.all([
       supabase
         .from("projects")
@@ -58,13 +56,18 @@ export async function GET(
         .select("id, invoice_number, client_name, amount, balance, issue_date, due_date, status, memo")
         .eq("project_id", projectId)
         .order("issue_date", { ascending: false }),
+    ]);
 
-      supabase
+    let costsData: Array<{ id: string; description: string; amount: number; cost_date: string; category: string; vendor: string | null }> = [];
+    try {
+      const costsResult = await supabase
         .from("project_costs")
         .select("id, description, amount, cost_date, category, vendor")
         .eq("project_id", projectId)
-        .order("cost_date", { ascending: false }),
-    ]);
+        .order("cost_date", { ascending: false });
+      costsData = costsResult.data || [];
+    } catch {
+    }
 
     if (projectResult.error || !projectResult.data) {
       return NextResponse.json(
@@ -80,7 +83,7 @@ export async function GET(
       dailyLogs: dailyLogsResult.data || [],
       photos: photosResult.data || [],
       invoices: invoicesResult.data || [],
-      costs: costsResult.data || [],
+      costs: costsData,
     });
 
     const response: StoryDetailResponse = { story };
