@@ -42,6 +42,7 @@ export interface CashFlowResponse {
     totalInflows: number;
     totalOutflows: number;
     netCashFlow: number;
+    creditCardBalance: number;
   };
   lastSyncedAt: string | null;
 }
@@ -192,6 +193,13 @@ export async function GET() {
   const totalInflows = invoices.reduce((sum, inv) => sum + Number(inv.balance), 0);
   const totalOutflows = bills.reduce((sum, bill) => sum + Number(bill.balance), 0);
 
+  // Separate credit card balances (vendors containing "amex" or "american express")
+  const creditCardBills = bills.filter((b) =>
+    b.vendor_name.toLowerCase().includes("amex") ||
+    b.vendor_name.toLowerCase().includes("american express")
+  );
+  const creditCardBalance = creditCardBills.reduce((sum, b) => sum + Number(b.balance), 0);
+
   const response: CashFlowResponse = {
     currentBalance: totalInflows - totalOutflows, // Net position
     weeklyPeriods,
@@ -201,6 +209,7 @@ export async function GET() {
       totalInflows,
       totalOutflows,
       netCashFlow: totalInflows - totalOutflows,
+      creditCardBalance,
     },
     lastSyncedAt: syncLog?.completed_at || null,
   };
