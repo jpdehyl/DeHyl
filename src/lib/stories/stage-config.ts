@@ -128,3 +128,19 @@ export function getStageConfig(slug: LifecycleStage): StageConfig {
 export function getImplementedStages(): StageConfig[] {
   return STAGE_CONFIGS.filter((s) => s.implemented);
 }
+
+// Stage gradient backgrounds for dark-themed containers
+export const STAGE_GRADIENTS: Record<string, string> = {
+  estimate: "from-blue-900 via-blue-800 to-slate-900",
+  crew: "from-teal-900 via-teal-800 to-slate-900",
+  daily_logs: "from-emerald-900 via-emerald-800 to-slate-900",
+  completion: "from-green-900 via-green-800 to-slate-900",
+  invoicing: "from-sky-900 via-sky-800 to-slate-900",
+  bid_invite: "from-purple-900 via-purple-800 to-slate-900",
+  po_contract: "from-indigo-900 via-indigo-800 to-slate-900",
+  pre_planning: "from-cyan-900 via-cyan-800 to-slate-900",
+  materials: "from-orange-900 via-orange-800 to-slate-900",
+  equipment: "from-amber-900 via-amber-800 to-slate-900",
+  safety_docs: "from-yellow-900 via-yellow-800 to-slate-900",
+  payment: "from-rose-900 via-rose-800 to-slate-900",
+};
