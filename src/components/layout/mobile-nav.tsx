@@ -10,6 +10,7 @@ import {
   Settings,
   X,
   FileText,
+  Play,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -27,6 +28,11 @@ const navItems = [
     title: "Projects",
     href: "/projects",
     icon: FolderKanban,
+  },
+  {
+    title: "Stories",
+    href: "/stories",
+    icon: Play,
   },
   {
     title: "Bids",

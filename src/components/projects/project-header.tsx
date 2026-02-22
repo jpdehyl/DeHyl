@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, AlertTriangle, FileText } from "lucide-react";
+import { ArrowLeft, ExternalLink, AlertTriangle, FileText, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -56,6 +56,12 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
           </div>
         </div>
         <div className="flex items-center gap-2 ml-12 md:ml-0">
+          <Button variant="outline" size="sm" className="gap-2 h-10 sm:h-9 px-4" asChild>
+            <Link href={`/stories/${project.id}`}>
+              <Play className="h-4 w-4" />
+              Story
+            </Link>
+          </Button>
           <Button variant="outline" size="sm" className="gap-2 h-10 sm:h-9 px-4" asChild>
             <Link href={`/projects/${project.id}/estimate`}>
               <FileText className="h-4 w-4" />
