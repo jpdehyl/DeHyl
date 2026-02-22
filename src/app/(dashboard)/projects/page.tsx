@@ -4,14 +4,11 @@ import { Suspense, useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { ProjectsTable, ProjectsFilters, ProjectsSummary } from "@/components/projects";
-import { useAppStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ProjectWithTotals } from "@/types";
 
 function ProjectsContent() {
   const searchParams = useSearchParams();
-  const { sidebarOpen } = useAppStore();
 
   // Get initial filter from URL params
   const initialFilter = searchParams.get("filter") || "all";
@@ -97,17 +94,9 @@ function ProjectsContent() {
 
   if (loading) {
     return (
-      <div className={cn("transition-all duration-300")}>
-        <Header
-          title="Projects"
-          description="All projects from Google Drive"
-        />
-        <div className="p-4 md:p-6 space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-24 rounded-lg" />
-            ))}
-          </div>
+      <div>
+        <Header title="Projects" />
+        <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-96 w-full" />
         </div>
@@ -117,37 +106,24 @@ function ProjectsContent() {
 
   if (error) {
     return (
-      <div className={cn("transition-all duration-300")}>
-        <Header
-          title="Projects"
-          description="All projects from Google Drive"
-        />
-        <div className="p-4 md:p-6">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-            <p className="mt-2 text-sm text-red-600 dark:text-red-300">
-              Make sure Google Drive is connected in Settings, then sync your projects.
-            </p>
-          </div>
+      <div>
+        <Header title="Projects" />
+        <div className="max-w-5xl mx-auto px-6 py-8">
+          <p className="text-sm text-destructive">{error}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Make sure Google Drive is connected in Settings, then sync your projects.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={cn(
-      "transition-all duration-300",
-      sidebarOpen ? "md:ml-0" : "md:ml-0"
-    )}>
-      <Header
-        title="Projects"
-        description="All projects from Google Drive"
-      />
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Summary */}
+    <div>
+      <Header title="Projects" />
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
         <ProjectsSummary projects={filteredProjects} />
 
-        {/* Filters */}
         <ProjectsFilters
           search={search}
           onSearchChange={setSearch}
@@ -160,7 +136,6 @@ function ProjectsContent() {
           onFilterChange={setFilter}
         />
 
-        {/* Table */}
         <ProjectsTable projects={filteredProjects} />
       </div>
     </div>

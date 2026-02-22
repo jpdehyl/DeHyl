@@ -4,15 +4,13 @@ import { Suspense, useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { InvoicesTable, InvoicesSummary, InvoicesFilters } from "@/components/invoices";
-import { useAppStore } from "@/lib/store";
-import { cn, getDaysOverdue, getDaysUntilDue } from "@/lib/utils";
+import { getDaysOverdue, getDaysUntilDue } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { InvoiceWithSuggestions, ProjectWithTotals } from "@/types";
 
 function ReceivablesContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { sidebarOpen } = useAppStore();
 
   const initialFilter = searchParams.get("filter") || "all";
   const [search, setSearch] = useState("");
@@ -135,17 +133,9 @@ function ReceivablesContent() {
 
   if (loading) {
     return (
-      <div className={cn("transition-all duration-300")}>
-        <Header
-          title="Receivables"
-          description="Invoices owed to DeHyl"
-        />
-        <div className="p-4 md:p-6 space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-24 rounded-lg" />
-            ))}
-          </div>
+      <div>
+        <Header title="Receivables" />
+        <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-96 w-full" />
         </div>
@@ -155,39 +145,24 @@ function ReceivablesContent() {
 
   if (error) {
     return (
-      <div className={cn("transition-all duration-300")}>
-        <Header
-          title="Receivables"
-          description="Invoices owed to DeHyl"
-        />
-        <div className="p-4 md:p-6">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-            <p className="mt-2 text-sm text-red-600 dark:text-red-300">
-              Make sure QuickBooks is connected in Settings, then sync your data.
-            </p>
-          </div>
+      <div>
+        <Header title="Receivables" />
+        <div className="max-w-5xl mx-auto px-6 py-8">
+          <p className="text-sm text-destructive">{error}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Make sure QuickBooks is connected in Settings, then sync your data.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      className={cn(
-        "transition-all duration-300",
-        sidebarOpen ? "md:ml-0" : "md:ml-0"
-      )}
-    >
-      <Header
-        title="Receivables"
-        description="Invoices owed to DeHyl"
-      />
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Summary */}
+    <div>
+      <Header title="Receivables" />
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
         <InvoicesSummary invoices={filteredInvoices} />
 
-        {/* Filters */}
         <InvoicesFilters
           search={search}
           onSearchChange={setSearch}
@@ -195,7 +170,6 @@ function ReceivablesContent() {
           onFilterChange={setFilter}
         />
 
-        {/* Table */}
         <InvoicesTable
           invoices={filteredInvoices}
           projects={projects}

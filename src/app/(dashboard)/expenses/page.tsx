@@ -258,14 +258,10 @@ export default function ExpensesPage() {
   if (loading) {
     return (
       <div>
-        <Header title="Expenses" description="Project cost tracking and invoice linking" />
-        <div className="p-4 md:p-6 space-y-6">
-          <div className="grid gap-4 md:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-24 rounded-lg" />
-            ))}
-          </div>
-          <Skeleton className="h-96 rounded-lg" />
+        <Header title="Costs" />
+        <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-96 w-full" />
         </div>
       </div>
     );
@@ -274,8 +270,7 @@ export default function ExpensesPage() {
   return (
     <div>
       <Header
-        title="Expenses"
-        description="Project cost tracking and invoice linking"
+        title="Costs"
         action={
           <div className="flex gap-2">
           <Link href="/expenses/import">
@@ -405,13 +400,12 @@ export default function ExpensesPage() {
         }
       />
 
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Unbilled Expenses Alert */}
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
         {unbilledStats.totalEntries > 0 && (
           <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
             <AlertDescription className="text-amber-800 dark:text-amber-200">
-              <strong>💰 {formatCurrency(unbilledStats.totalAmount)} in expenses not yet invoiced</strong> — {unbilledStats.totalEntries} entries
+              <strong>{formatCurrency(unbilledStats.totalAmount)} in expenses not yet invoiced</strong> &mdash; {unbilledStats.totalEntries} entries
               <Link 
                 href="/expenses?status=unlinked" 
                 className="ml-2 font-medium underline hover:no-underline"

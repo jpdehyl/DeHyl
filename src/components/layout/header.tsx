@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { RefreshCw, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
 import { useAppStore } from "@/lib/store";
@@ -24,7 +23,6 @@ export function Header({ title, description, action }: HeaderProps) {
     setMobileNavOpen,
   } = useAppStore();
 
-  // Fetch last sync time on mount
   useEffect(() => {
     async function fetchSyncStatus() {
       try {
@@ -36,7 +34,6 @@ export function Header({ title, description, action }: HeaderProps) {
           }
         }
       } catch {
-        // Silently fail - not critical
       }
     }
     if (!lastSyncedAt) {
@@ -52,7 +49,6 @@ export function Header({ title, description, action }: HeaderProps) {
         setLastSyncedAt(new Date());
       }
     } catch {
-      // Sync failed silently
     } finally {
       setSyncing(false);
     }
@@ -61,61 +57,43 @@ export function Header({ title, description, action }: HeaderProps) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6 transition-all duration-300",
+        "flex h-14 items-center gap-4 px-5 md:px-6 transition-all duration-300",
         sidebarOpen ? "md:pl-64" : "md:pl-16"
       )}
     >
-      {/* Mobile menu button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="md:hidden"
+      <button
+        className="md:hidden p-1.5 text-muted-foreground hover:text-foreground"
         onClick={() => setMobileNavOpen(true)}
       >
         <Menu className="h-5 w-5" />
-        <span className="sr-only">Open menu</span>
-      </Button>
+      </button>
 
-      {/* Title */}
-      <div className="flex-1">
-        <h1 className="text-xl font-semibold">{title}</h1>
+      <div className="flex-1 min-w-0">
+        <h1 className="text-lg font-semibold font-serif tracking-tight truncate">{title}</h1>
         {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-xs text-muted-foreground truncate">{description}</p>
         )}
       </div>
 
-      {/* Page-specific action */}
       {action && <div className="hidden sm:block">{action}</div>}
 
-      {/* Actions */}
-      <div className="flex items-center gap-2">
-        {/* Last synced */}
+      <div className="flex items-center gap-1.5">
         {lastSyncedAt && (
-          <span className="hidden sm:inline text-xs text-muted-foreground">
-            Synced {getRelativeTime(lastSyncedAt)}
+          <span className="hidden sm:inline text-xs text-muted-foreground/60">
+            {getRelativeTime(lastSyncedAt)}
           </span>
         )}
 
-        {/* Sync button */}
-        <Button
-          variant="outline"
-          size="sm"
+        <button
           onClick={handleSync}
           disabled={isSyncing}
-          className="gap-2"
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+          title="Sync data"
         >
-          <RefreshCw
-            className={cn("h-4 w-4", isSyncing && "animate-spin")}
-          />
-          <span className="hidden sm:inline">
-            {isSyncing ? "Syncing..." : "Sync"}
-          </span>
-        </Button>
+          <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
+        </button>
 
-        {/* Theme toggle */}
         <ThemeToggle />
-
-        {/* User menu */}
         <UserMenu />
       </div>
     </header>
