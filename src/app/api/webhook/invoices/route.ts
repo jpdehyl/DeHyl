@@ -8,6 +8,31 @@ function authenticate(request: NextRequest): boolean {
   return provided === apiKey;
 }
 
+// GET /api/webhook/invoices — summary of open invoices (AR)
+export async function GET(request: NextRequest) {
+  if (!authenticate(request)) {
+    return NextResponse.json(
+      { error: "Unauthorized. Provide a valid x-api-key header." },
+      { status: 401 }
+    );
+  }
+
+  const supabase = await createClient();
+  const { data: invoices } = await supabase
+    .from("invoices")
+    .select("invoice_number, client_name, amount, balance, status, due_date")
+    .gt("balance", 0)
+    .order("due_date", { ascending: true });
+
+  const totalAR = (invoices || []).reduce((sum: number, inv: { balance: number }) => sum + Number(inv.balance), 0);
+
+  return NextResponse.json({
+    total_ar: totalAR,
+    open_invoices: (invoices || []).length,
+    invoices: invoices || [],
+  });
+}
+
 // PATCH /api/webhook/invoices
 // Update invoice balance and status by invoice_number
 // Body: { invoices: [{ invoice_number, balance, status }] }
