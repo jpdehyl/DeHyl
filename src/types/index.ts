@@ -81,6 +81,21 @@ export interface InvoiceWithSuggestions extends Invoice {
   matchSuggestions: MatchSuggestion[];
 }
 
+export interface InvoiceLineItem {
+  id: string;
+  invoiceId: string;
+  lineNum: number | null;
+  description: string | null;
+  quantity: number | null;
+  unitPrice: number | null;
+  amount: number;
+  itemName: string | null;
+}
+
+export interface InvoiceWithDetails extends Invoice {
+  lineItems: InvoiceLineItem[];
+}
+
 // -------------------------------------------
 // Bill (from QuickBooks)
 // -------------------------------------------

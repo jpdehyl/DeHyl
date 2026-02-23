@@ -11,6 +11,17 @@ interface QBInvoice {
   TxnDate: string;
   DueDate: string;
   PrivateNote?: string;
+  Line?: Array<{
+    LineNum?: number;
+    Description?: string;
+    Amount?: number;
+    DetailType?: string;
+    SalesItemLineDetail?: {
+      ItemRef?: { name?: string; value?: string };
+      Qty?: number;
+      UnitPrice?: number;
+    };
+  }>;
 }
 
 interface QBBill {
@@ -194,6 +205,73 @@ export async function POST() {
       }
     }
 
+    // Sync invoice line items
+    // First, get all invoice IDs by qb_id so we can link line items
+    const { data: allInvoiceRows } = await supabase
+      .from("invoices")
+      .select("id, qb_id");
+
+    const qbIdToInvoiceId = new Map(
+      (allInvoiceRows || []).map((row) => [row.qb_id, row.id])
+    );
+
+    // Build line items from QB data
+    const allLineItems: Array<{
+      invoice_id: string;
+      line_num: number | null;
+      description: string | null;
+      quantity: number | null;
+      unit_price: number | null;
+      amount: number;
+      item_name: string | null;
+    }> = [];
+
+    for (const inv of invoices) {
+      const invoiceId = qbIdToInvoiceId.get(inv.Id);
+      if (!invoiceId || !inv.Line) continue;
+
+      for (const line of inv.Line) {
+        // Only sync actual item lines, skip SubTotal/Discount lines
+        if (line.DetailType !== "SalesItemLineDetail") continue;
+
+        allLineItems.push({
+          invoice_id: invoiceId,
+          line_num: line.LineNum ?? null,
+          description: line.Description || line.SalesItemLineDetail?.ItemRef?.name || null,
+          quantity: line.SalesItemLineDetail?.Qty ?? null,
+          unit_price: line.SalesItemLineDetail?.UnitPrice ?? null,
+          amount: line.Amount ?? 0,
+          item_name: line.SalesItemLineDetail?.ItemRef?.name ?? null,
+        });
+      }
+    }
+
+    // Delete existing line items and re-insert (simpler than diffing)
+    if (allLineItems.length > 0) {
+      const invoiceIdsWithLines = [...new Set(allLineItems.map(li => li.invoice_id))];
+
+      // Delete in batches
+      for (let i = 0; i < invoiceIdsWithLines.length; i += 100) {
+        const batch = invoiceIdsWithLines.slice(i, i + 100);
+        await supabase
+          .from("invoice_line_items")
+          .delete()
+          .in("invoice_id", batch);
+      }
+
+      // Insert in batches
+      for (let i = 0; i < allLineItems.length; i += 500) {
+        const batch = allLineItems.slice(i, i + 500);
+        const { error: lineItemError } = await supabase
+          .from("invoice_line_items")
+          .insert(batch);
+
+        if (lineItemError) {
+          console.error("Failed to insert invoice line items batch:", lineItemError);
+        }
+      }
+    }
+
     // Sync ALL bills (not just open) so paid bills get status/balance updated
     const bills = (await qbClient.getAllBills()) as unknown as QBBill[];
     const mappedBills = bills.map((bill) => {
@@ -324,6 +402,7 @@ export async function POST() {
       success: true,
       invoices_synced: invoices.length,
       bills_synced: bills.length,
+      line_items_synced: allLineItems.length,
       conflicts_detected: conflicts.length,
     });
   } catch (error) {

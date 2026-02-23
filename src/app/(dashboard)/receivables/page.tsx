@@ -4,13 +4,14 @@ import { Suspense, useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, ChevronDown, ChevronUp, Lightbulb, Check, X, Link as LinkIcon } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, Lightbulb, Check, X, Link as LinkIcon, Unlink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ProjectSelectorDialog } from "@/components/shared/project-selector-dialog";
+import { InvoiceDetailDrawer } from "@/components/invoices/invoice-detail-drawer";
 import { getDaysOverdue, getDaysUntilDue, formatCurrency, formatDate, cn } from "@/lib/utils";
 import Link from "next/link";
-import type { InvoiceWithSuggestions, ProjectWithTotals } from "@/types";
+import type { InvoiceWithSuggestions, ProjectWithTotals, Invoice } from "@/types";
 
 interface ClientGroup {
   clientName: string;
@@ -18,6 +19,13 @@ interface ClientGroup {
   overdueBalance: number;
   maxDaysOverdue: number;
   invoices: InvoiceWithSuggestions[];
+}
+
+interface AgingBucket {
+  label: string;
+  amount: number;
+  count: number;
+  color: string;
 }
 
 function ReceivablesContent() {
@@ -34,6 +42,10 @@ function ReceivablesContent() {
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceWithSuggestions | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Invoice detail drawer state
+  const [drawerInvoiceId, setDrawerInvoiceId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -93,6 +105,22 @@ function ReceivablesContent() {
     setSelectedInvoice(null);
   };
 
+  const openInvoiceClick = useCallback((inv: InvoiceWithSuggestions) => {
+    setDrawerInvoiceId(inv.id);
+    setDrawerOpen(true);
+  }, []);
+
+  const openAssignFromDrawer = useCallback((invoice: Invoice) => {
+    // Find the full InvoiceWithSuggestions from our state
+    const fullInv = invoices.find(i => i.id === invoice.id);
+    if (fullInv) {
+      setSelectedInvoice(fullInv);
+    } else {
+      setSelectedInvoice({ ...invoice, matchSuggestions: [] } as InvoiceWithSuggestions);
+    }
+    setDialogOpen(true);
+  }, [invoices]);
+
   const openInvoices = useMemo(() =>
     invoices.filter(inv => inv.balance > 0),
     [invoices]
@@ -138,6 +166,31 @@ function ReceivablesContent() {
       { total: 0, overdue: 0, overdueCount: 0 }
     );
   }, [openInvoices]);
+
+  // Aging buckets computation
+  const agingBuckets = useMemo((): AgingBucket[] => {
+    const buckets = {
+      current: { label: "Current", amount: 0, count: 0, color: "bg-emerald-400/70" },
+      "1-30": { label: "1-30 days", amount: 0, count: 0, color: "bg-amber-400/70" },
+      "31-60": { label: "31-60 days", amount: 0, count: 0, color: "bg-orange-400/70" },
+      "61-90": { label: "61-90 days", amount: 0, count: 0, color: "bg-red-400/70" },
+      "90+": { label: "90+ days", amount: 0, count: 0, color: "bg-red-600/70" },
+    };
+
+    openInvoices.forEach(inv => {
+      const daysOver = getDaysOverdue(inv.dueDate);
+      if (daysOver <= 0) { buckets.current.amount += inv.balance; buckets.current.count++; }
+      else if (daysOver <= 30) { buckets["1-30"].amount += inv.balance; buckets["1-30"].count++; }
+      else if (daysOver <= 60) { buckets["31-60"].amount += inv.balance; buckets["31-60"].count++; }
+      else if (daysOver <= 90) { buckets["61-90"].amount += inv.balance; buckets["61-90"].count++; }
+      else { buckets["90+"].amount += inv.balance; buckets["90+"].count++; }
+    });
+
+    return Object.values(buckets);
+  }, [openInvoices]);
+
+  const maxBucketAmount = useMemo(() => Math.max(...agingBuckets.map(b => b.amount), 1), [agingBuckets]);
+  const totalAgingAmount = useMemo(() => agingBuckets.reduce((sum, b) => sum + b.amount, 0), [agingBuckets]);
 
   const clientGroups = useMemo(() => {
     const groups = new Map<string, ClientGroup>();
@@ -200,12 +253,49 @@ function ReceivablesContent() {
         </div>
 
         {/* Prose */}
-        <p className="text-sm leading-relaxed text-muted-foreground mt-4 mb-12 max-w-lg">
+        <p className="text-sm leading-relaxed text-muted-foreground mt-4 mb-8 max-w-lg">
           {totals.overdueCount > 0
             ? `${formatCurrency(totals.overdue)} is overdue across ${totals.overdueCount} invoice${totals.overdueCount !== 1 ? "s" : ""}. ${clientGroups.filter(g => g.maxDaysOverdue > 60).length > 0 ? `${clientGroups.filter(g => g.maxDaysOverdue > 60).length} client${clientGroups.filter(g => g.maxDaysOverdue > 60).length !== 1 ? "s" : ""} 60+ days overdue.` : ""}`
             : "All invoices are current. No overdue balances."
           }
         </p>
+
+        {/* Aging Buckets Chart */}
+        {openInvoices.length > 0 && (
+          <div className="mb-12">
+            {/* Stacked bar */}
+            <div className="flex h-3 rounded-full overflow-hidden bg-muted/20 mb-3">
+              {agingBuckets.map((bucket) => {
+                const pct = totalAgingAmount > 0 ? (bucket.amount / totalAgingAmount) * 100 : 0;
+                if (pct === 0) return null;
+                return (
+                  <div
+                    key={bucket.label}
+                    className={cn("h-full transition-all", bucket.color)}
+                    style={{ width: `${pct}%` }}
+                    title={`${bucket.label}: ${formatCurrency(bucket.amount)}`}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+              {agingBuckets.map((bucket) => (
+                <div key={bucket.label} className="flex items-center gap-1.5 text-xs">
+                  <div className={cn("h-2 w-2 rounded-full", bucket.color)} />
+                  <span className="text-muted-foreground">{bucket.label}</span>
+                  <span className="tabular-nums font-medium">
+                    {formatCurrency(bucket.amount)}
+                  </span>
+                  {bucket.count > 0 && (
+                    <span className="text-muted-foreground/50">({bucket.count})</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Overdue callout */}
         {totals.overdue > 0 && (
@@ -292,7 +382,7 @@ function ReceivablesContent() {
                 {/* Expanded invoices */}
                 {isExpanded && (
                   <div className="pb-4 px-3 -mx-3">
-                    <div className="ml-4 border-l border-muted/40 pl-4 space-y-2">
+                    <div className="ml-4 border-l border-muted/40 pl-4 space-y-1">
                       {group.invoices
                         .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
                         .map(inv => {
@@ -300,18 +390,52 @@ function ReceivablesContent() {
                           const project = projects.find(p => p.id === inv.projectId);
 
                           return (
-                            <div key={inv.id} className="flex items-center justify-between py-1.5 text-sm gap-4">
+                            <div key={inv.id} className="flex items-center justify-between py-2 text-sm gap-4 group/row hover:bg-muted/10 -mx-2 px-2 rounded-sm transition-colors">
                               <div className="min-w-0 flex-1">
-                                <span className="text-foreground font-medium">{inv.invoiceNumber}</span>
+                                {/* Invoice number - clickable to open drawer */}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openInvoiceClick(inv); }}
+                                  className="text-foreground font-medium hover:underline hover:text-primary transition-colors"
+                                >
+                                  {inv.invoiceNumber}
+                                </button>
                                 <span className="text-muted-foreground ml-2">
                                   due {formatDate(inv.dueDate)}
                                   {daysOver > 0 && (
                                     <span className="text-red-600 dark:text-red-400 ml-1">({daysOver}d overdue)</span>
                                   )}
                                 </span>
+
+                                {/* Assigned project - clickable to reassign */}
                                 {project && (
-                                  <span className="text-muted-foreground ml-2">&middot; {project.code}</span>
+                                  <span className="ml-2 inline-flex items-center gap-1">
+                                    <span className="text-muted-foreground">&middot;</span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedInvoice(inv);
+                                        setDialogOpen(true);
+                                      }}
+                                      className="text-muted-foreground hover:text-primary hover:underline transition-colors inline-flex items-center gap-0.5"
+                                      title="Click to reassign or unassign"
+                                    >
+                                      {project.code}
+                                    </button>
+                                    {/* Quick unassign button */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAssign(inv.id, null);
+                                      }}
+                                      className="opacity-0 group-hover/row:opacity-100 text-muted-foreground hover:text-destructive transition-all ml-0.5"
+                                      title="Unassign from project"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </span>
                                 )}
+
+                                {/* Match suggestion */}
                                 {!project && inv.matchSuggestions.length > 0 && (
                                   <span className="text-amber-600 ml-2 inline-flex items-center gap-0.5">
                                     <Lightbulb className="h-3 w-3" />
@@ -324,6 +448,8 @@ function ReceivablesContent() {
                                     </button>
                                   </span>
                                 )}
+
+                                {/* Unassigned - assign button */}
                                 {!project && inv.matchSuggestions.length === 0 && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setSelectedInvoice(inv); setDialogOpen(true); }}
@@ -358,6 +484,17 @@ function ReceivablesContent() {
         </div>
       </div>
 
+      {/* Invoice detail drawer */}
+      <InvoiceDetailDrawer
+        invoiceId={drawerInvoiceId}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        projects={projects}
+        onAssign={handleAssign}
+        onOpenAssignDialog={openAssignFromDrawer}
+      />
+
+      {/* Project assignment dialog */}
       <ProjectSelectorDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
