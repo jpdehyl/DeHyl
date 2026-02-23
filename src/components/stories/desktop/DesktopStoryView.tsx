@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStoryStore } from "@/lib/stores/story-store";
-import { NarrativeStoryView } from "./NarrativeStoryView";
-import { ActiveProjectCard } from "./ActiveProjectCard";
-import { CompletedProjectsList } from "./CompletedProjectsList";
-import { ArrowLeft, Loader2, FolderOpen } from "lucide-react";
+import { StoryViewer } from "./StoryViewer";
+import { ProjectNavCard } from "./ProjectNavCard";
+import { Search, X, ChevronDown, ChevronRight, ArrowLeft } from "lucide-react";
 import type { ProjectStorySummary } from "@/types/stories";
 
 interface DesktopStoryViewProps {
@@ -21,134 +20,172 @@ export function DesktopStoryView({
   onSelectProject,
 }: DesktopStoryViewProps) {
   const router = useRouter();
-  const { stories, isLoading, feedCards, feedLoading } = useStoryStore();
+  const { stories, isLoading } = useStoryStore();
+  const [search, setSearch] = useState("");
+  const [completedExpanded, setCompletedExpanded] = useState(false);
 
   const story = currentProjectId ? stories.get(currentProjectId) : undefined;
 
-  const activeProjects = useMemo(
-    () => projects.filter((p) => p.status === "active"),
-    [projects]
-  );
-  const closedProjects = useMemo(
-    () => projects.filter((p) => p.status === "closed"),
-    [projects]
-  );
+  // Split and filter projects
+  const { activeProjects, completedProjects } = useMemo(() => {
+    const searchLower = search.toLowerCase();
 
-  const urgentItems = useMemo(
-    () => feedCards.filter((c) => c.priority === "critical" || c.priority === "high"),
-    [feedCards]
-  );
+    const filtered = projects.filter((p) => {
+      if (!search) return true;
+      return (
+        p.projectCode.toLowerCase().includes(searchLower) ||
+        p.projectName.toLowerCase().includes(searchLower) ||
+        p.clientName.toLowerCase().includes(searchLower) ||
+        p.clientCode.toLowerCase().includes(searchLower)
+      );
+    });
+
+    return {
+      activeProjects: filtered.filter((p) => p.status === "active"),
+      completedProjects: filtered.filter((p) => p.status === "closed"),
+    };
+  }, [projects, search]);
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-10">
-      {/* Header */}
-      <header className="mb-8">
-        <div className="flex items-center justify-between mb-1">
-          <h1 className="text-3xl font-serif font-bold tracking-tight text-foreground">
-            Stories
-          </h1>
-          <button
-            onClick={() => router.push("/")}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back
-          </button>
-        </div>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          The life of each project, told chapter by chapter.
-        </p>
-      </header>
-
-      {/* Needs Attention */}
-      {urgentItems.length > 0 && !feedLoading && (
-        <div className="mb-8 border-l-2 border-amber-400 pl-4 py-1">
-          <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-2">
-            Needs attention
-          </p>
-          <div className="space-y-1.5">
-            {urgentItems.slice(0, 4).map((item) => (
-              <button
-                key={item.id}
-                onClick={() => router.push(item.actionUrl)}
-                className="block text-left w-full group"
-              >
-                <p className="text-sm text-foreground group-hover:text-primary transition-colors leading-snug">
-                  {item.title}
-                  {item.projectCode && (
-                    <span className="text-muted-foreground ml-1.5 text-xs">
-                      {item.projectCode}
-                    </span>
-                  )}
-                </p>
-              </button>
-            ))}
-            {urgentItems.length > 4 && (
-              <p className="text-xs text-muted-foreground">
-                +{urgentItems.length - 4} more
+    <div className="h-screen flex overflow-hidden">
+      {/* Left: Story Content (main focus) */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-4xl mx-auto px-8 py-10">
+          {/* Minimal header */}
+          <header className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-2xl font-serif font-bold tracking-tight text-foreground">
+                Stories
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                The visual journey of each project
               </p>
+            </div>
+            <button
+              onClick={() => router.push("/")}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back
+            </button>
+          </header>
+
+          {/* Story content */}
+          {story ? (
+            <StoryViewer story={story} />
+          ) : isLoading ? (
+            <div className="flex items-center justify-center h-96">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm text-muted-foreground">Loading story...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-96">
+              <div className="text-center">
+                <p className="text-lg text-muted-foreground mb-2">
+                  Select a project to read its story
+                </p>
+                <p className="text-sm text-muted-foreground/70">
+                  Every project has a beginning, execution, and end
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Right: Project Navigation Sidebar */}
+      <aside className="w-72 border-l bg-muted/30 flex flex-col overflow-hidden">
+        {/* Search */}
+        <div className="p-4 border-b">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search stories..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted"
+              >
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
             )}
           </div>
         </div>
-      )}
 
-      {/* Active Projects - Featured Cards */}
-      {activeProjects.length > 0 && (
-        <section className="mb-8">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
-            Active Projects
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {activeProjects.map((project) => (
-              <ActiveProjectCard
-                key={project.projectId}
-                project={project}
-                isSelected={currentProjectId === project.projectId}
-                onSelect={() => onSelectProject(project.projectId)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
+        {/* Project list */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          {/* Active Projects */}
+          {activeProjects.length > 0 && (
+            <section>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                Active
+              </h3>
+              <div className="space-y-2">
+                {activeProjects.map((project) => (
+                  <ProjectNavCard
+                    key={project.projectId}
+                    project={project}
+                    isSelected={currentProjectId === project.projectId}
+                    onSelect={() => onSelectProject(project.projectId)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-      {/* No active projects message */}
-      {activeProjects.length === 0 && projects.length > 0 && (
-        <div className="mb-8 p-6 border border-dashed rounded-lg text-center">
-          <FolderOpen className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">
-            No active projects right now
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Select a completed project below to view its story
-          </p>
+          {/* Completed Projects - Collapsible */}
+          {completedProjects.length > 0 && (
+            <section>
+              <button
+                onClick={() => setCompletedExpanded(!completedExpanded)}
+                className="flex items-center gap-2 w-full text-left group mb-3"
+              >
+                {completedExpanded ? (
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Completed
+                </h3>
+                <span className="text-xs text-muted-foreground/70">
+                  ({completedProjects.length})
+                </span>
+              </button>
+
+              {completedExpanded && (
+                <div className="space-y-2">
+                  {completedProjects.map((project) => (
+                    <ProjectNavCard
+                      key={project.projectId}
+                      project={project}
+                      isSelected={currentProjectId === project.projectId}
+                      onSelect={() => onSelectProject(project.projectId)}
+                      compact
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* No results */}
+          {activeProjects.length === 0 && completedProjects.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">
+                {search ? "No projects match your search" : "No projects yet"}
+              </p>
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Completed Projects - Compact List */}
-      <CompletedProjectsList
-        projects={closedProjects}
-        selectedProjectId={currentProjectId}
-        onSelectProject={onSelectProject}
-      />
-
-      {/* Selected Project Story */}
-      <div className="border-t mt-10 pt-10">
-        {isLoading && !story ? (
-          <div className="flex items-center justify-center h-48">
-            <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
-          </div>
-        ) : story ? (
-          <NarrativeStoryView story={story} />
-        ) : (
-          <div className="text-center py-16">
-            <p className="text-muted-foreground text-sm">
-              {projects.length > 0
-                ? "Select a project above to read its story."
-                : "No projects yet. Projects will appear here once they have data."}
-            </p>
-          </div>
-        )}
-      </div>
+      </aside>
     </div>
   );
 }
