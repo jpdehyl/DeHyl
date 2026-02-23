@@ -57,6 +57,7 @@ export async function GET() {
       status: bill.status,
       projectId: bill.project_id,
       memo: bill.memo,
+      manualOverride: bill.manual_override ?? false,
       syncedAt: bill.synced_at ? new Date(bill.synced_at) : new Date(),
     }));
 
