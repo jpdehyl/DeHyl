@@ -85,6 +85,14 @@ interface ProjectGroup {
 }
 
 export default function ExpensesPage() {
+  return (
+    <Suspense>
+      <ExpensesPageContent />
+    </Suspense>
+  );
+}
+
+function ExpensesPageContent() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [unbilledStats, setUnbilledStats] = useState<UnbilledStats>({ totalEntries: 0, totalAmount: 0 });

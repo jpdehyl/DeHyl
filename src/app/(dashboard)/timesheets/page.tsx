@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,6 +87,14 @@ interface UnassignedStats {
 const KNOWN_WORKERS = ["Oscar", "Pedro", "Mario", "Cathy"];
 
 export default function TimesheetsPage() {
+  return (
+    <Suspense>
+      <TimesheetsPageContent />
+    </Suspense>
+  );
+}
+
+function TimesheetsPageContent() {
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [unassignedStats, setUnassignedStats] = useState<UnassignedStats>({ totalEntries: 0, totalHours: 0 });
