@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,6 +70,14 @@ const typeColors: Record<string, string> = {
 };
 
 export default function SafetyPage() {
+  return (
+    <Suspense>
+      <SafetyPageContent />
+    </Suspense>
+  );
+}
+
+function SafetyPageContent() {
   const searchParams = useSearchParams();
   const showSuccess = searchParams.get("success") === "true";
   
