@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,6 +107,14 @@ const EXPENSE_CATEGORIES = [
 const SHOP_PROJECT_ID = '8649bd23-6948-4ec6-8dc8-4c58c8a25016';
 
 export default function ExpensesPage() {
+  return (
+    <Suspense>
+      <ExpensesPageContent />
+    </Suspense>
+  );
+}
+
+function ExpensesPageContent() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [unbilledStats, setUnbilledStats] = useState<UnbilledStats>({ totalEntries: 0, totalAmount: 0 });
