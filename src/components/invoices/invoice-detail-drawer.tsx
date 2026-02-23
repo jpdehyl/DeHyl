@@ -19,6 +19,7 @@ import {
   Unlink,
   ArrowRight,
 } from "lucide-react";
+import { EditableAmount } from "@/components/ui/editable-amount";
 import { formatCurrency, formatDate, getDaysOverdue, cn } from "@/lib/utils";
 import type { Invoice, InvoiceLineItem, ProjectWithTotals, MatchSuggestion } from "@/types";
 
@@ -91,6 +92,20 @@ export function InvoiceDetailDrawer({
     onOpenAssignDialog(details.invoice);
   }, [details, onOpenAssignDialog]);
 
+  const handleFieldSave = useCallback(async (field: string, value: number) => {
+    if (!details?.invoice?.id) return;
+    const res = await fetch(`/api/invoices/${details.invoice.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    if (!res.ok) throw new Error("Failed to update invoice");
+    // Update local state
+    setDetails((prev) =>
+      prev ? { ...prev, invoice: { ...prev.invoice, [field]: value, manualOverride: true } } : null
+    );
+  }, [details]);
+
   const inv = details?.invoice;
   const daysOver = inv ? getDaysOverdue(inv.dueDate) : 0;
 
@@ -137,29 +152,31 @@ export function InvoiceDetailDrawer({
               {/* Financial summary */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
                     Amount
                   </p>
-                  <p className="text-2xl font-serif font-semibold tabular-nums mt-0.5">
-                    {formatCurrency(inv.amount)}
-                  </p>
+                  <EditableAmount
+                    value={inv.amount}
+                    onSave={(v) => handleFieldSave("amount", v)}
+                    className="text-2xl font-serif font-semibold"
+                    isOverridden={inv.manualOverride}
+                  />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
                     Balance
                   </p>
-                  <p
+                  <EditableAmount
+                    value={inv.balance}
+                    onSave={(v) => handleFieldSave("balance", v)}
                     className={cn(
-                      "text-2xl font-serif font-semibold tabular-nums mt-0.5",
+                      "text-2xl font-serif font-semibold",
                       inv.balance > 0
                         ? "text-red-600 dark:text-red-400"
                         : "text-green-600 dark:text-green-400"
                     )}
-                  >
-                    {inv.balance > 0
-                      ? formatCurrency(inv.balance)
-                      : "Paid"}
-                  </p>
+                    isOverridden={inv.manualOverride}
+                  />
                 </div>
               </div>
 
