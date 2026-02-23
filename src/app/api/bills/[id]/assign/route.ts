@@ -15,7 +15,10 @@ export async function POST(
 
     const { data, error } = await supabase
       .from("bills")
-      .update({ project_id: projectId || null })
+      .update({
+        project_id: projectId || null,
+        manual_override: !!projectId, // Protect from sync overwrite when assigned
+      })
       .eq("id", id)
       .select()
       .single();

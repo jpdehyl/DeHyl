@@ -104,15 +104,34 @@ function ClerkUserMenu() {
 }
 
 function FallbackUserMenu() {
+  const router = useRouter();
+
   return (
-    <Avatar className="h-8 w-8">
-      <AvatarFallback className="text-xs">JP</AvatarFallback>
-    </Avatar>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="text-xs">JP</AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-48" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <p className="text-sm font-medium">DeHyl Admin</p>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => router.push("/settings")}>
+          <Settings className="mr-2 h-4 w-4" />
+          Settings
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
 export function UserMenu() {
-  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+  const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  if (!clerkKey || !clerkKey.startsWith("pk_")) {
     return <FallbackUserMenu />;
   }
 

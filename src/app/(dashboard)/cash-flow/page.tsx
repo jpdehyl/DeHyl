@@ -23,6 +23,7 @@ import {
   DollarSign,
   Calendar,
   ArrowRight,
+  CreditCard,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
@@ -122,7 +123,7 @@ export default function CashFlowPage() {
       />
       <div className="p-4 md:p-6 space-y-6">
         {/* KPI Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           {/* Net Position */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -137,10 +138,28 @@ export default function CashFlowPage() {
                 {formatCurrency(totals.netCashFlow)}
               </div>
               <p className="text-xs text-muted-foreground">
-                Total receivables minus payables
+                AR {formatCurrency(totals.totalInflows)} − AP {formatCurrency(totals.totalOutflows)}
               </p>
             </CardContent>
           </Card>
+
+          {/* Amex Credit Card */}
+          {totals.creditCardBalance > 0 && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Amex Balance</CardTitle>
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  {formatCurrency(totals.creditCardBalance)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Included in AP total
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* 30-Day Projection */}
           <Card>

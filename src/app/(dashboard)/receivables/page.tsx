@@ -3,26 +3,38 @@
 import { Suspense, useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Header } from "@/components/layout/header";
-import { InvoicesTable, InvoicesSummary, InvoicesFilters } from "@/components/invoices";
-import { useAppStore } from "@/lib/store";
-import { cn, getDaysOverdue, getDaysUntilDue } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Search, ChevronDown, ChevronUp, Lightbulb, Check, X, Link as LinkIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ProjectSelectorDialog } from "@/components/shared/project-selector-dialog";
+import { getDaysOverdue, getDaysUntilDue, formatCurrency, formatDate, cn } from "@/lib/utils";
+import Link from "next/link";
 import type { InvoiceWithSuggestions, ProjectWithTotals } from "@/types";
+
+interface ClientGroup {
+  clientName: string;
+  totalBalance: number;
+  overdueBalance: number;
+  maxDaysOverdue: number;
+  invoices: InvoiceWithSuggestions[];
+}
 
 function ReceivablesContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { sidebarOpen } = useAppStore();
-
   const initialFilter = searchParams.get("filter") || "all";
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState(initialFilter);
   const [invoices, setInvoices] = useState<InvoiceWithSuggestions[]>([]);
   const [projects, setProjects] = useState<ProjectWithTotals[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedClient, setExpandedClient] = useState<string | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceWithSuggestions | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Fetch data from APIs
   useEffect(() => {
     async function fetchData() {
       try {
@@ -31,57 +43,27 @@ function ReceivablesContent() {
           fetch("/api/receivables"),
           fetch("/api/projects"),
         ]);
-
-        if (!receivablesRes.ok) {
-          throw new Error("Failed to fetch receivables");
-        }
-        if (!projectsRes.ok) {
-          throw new Error("Failed to fetch projects");
-        }
+        if (!receivablesRes.ok) throw new Error("Failed to fetch receivables");
+        if (!projectsRes.ok) throw new Error("Failed to fetch projects");
 
         const receivablesData = await receivablesRes.json();
         const projectsData = await projectsRes.json();
 
-        // Transform invoices to InvoiceWithSuggestions format
         const invoicesWithSuggestions: InvoiceWithSuggestions[] = (receivablesData.invoices || []).map(
-          (inv: InvoiceWithSuggestions) => ({
-            ...inv,
-            matchSuggestions: inv.matchSuggestions || [],
-          })
+          (inv: InvoiceWithSuggestions) => ({ ...inv, matchSuggestions: inv.matchSuggestions || [] })
         );
 
         setInvoices(invoicesWithSuggestions);
         setProjects(projectsData.projects || []);
       } catch (err) {
-        console.error("Error fetching receivables:", err);
         setError(err instanceof Error ? err.message : "Failed to load receivables");
       } finally {
         setLoading(false);
       }
     }
-
     fetchData();
   }, []);
 
-  // Handle inline amount edit
-  const handleAmountUpdate = useCallback(async (invoiceId: string, field: string, value: number) => {
-    const res = await fetch(`/api/invoices/${invoiceId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: value }),
-    });
-    if (!res.ok) throw new Error("Failed to update invoice");
-    // Update local state
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === invoiceId
-          ? { ...inv, [field]: value, manualOverride: true }
-          : inv
-      )
-    );
-  }, []);
-
-  // Handle invoice assignment
   const handleAssign = useCallback(async (invoiceId: string, projectId: string | null) => {
     try {
       const response = await fetch(`/api/invoices/${invoiceId}/assign`, {
@@ -89,83 +71,102 @@ function ReceivablesContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId }),
       });
+      if (!response.ok) throw new Error("Failed to assign invoice");
 
-      if (!response.ok) {
-        throw new Error("Failed to assign invoice");
-      }
-
-      // Update local state optimistically
       setInvoices((prev) =>
         prev.map((inv) =>
           inv.id === invoiceId
-            ? {
-                ...inv,
-                projectId,
-                matchConfidence: projectId ? "high" : null,
-                matchSuggestions: projectId ? [] : inv.matchSuggestions,
-              }
+            ? { ...inv, projectId, matchConfidence: projectId ? "high" : null, matchSuggestions: projectId ? [] : inv.matchSuggestions }
             : inv
         )
       );
-
-      // Refresh the page data
-      router.refresh();
     } catch (error) {
       console.error("Failed to assign invoice:", error);
     }
-  }, [router]);
+  }, []);
 
-  // Filter invoices
+  const handleDialogAssign = async (projectId: string | null) => {
+    if (selectedInvoice) {
+      await handleAssign(selectedInvoice.id, projectId);
+    }
+    setDialogOpen(false);
+    setSelectedInvoice(null);
+  };
+
+  const openInvoices = useMemo(() =>
+    invoices.filter(inv => inv.balance > 0),
+    [invoices]
+  );
+
   const filteredInvoices = useMemo(() => {
-    return invoices.filter((invoice) => {
-      // Only show open invoices (balance > 0)
-      if (invoice.balance === 0) return false;
+    let result = openInvoices;
 
-      // Search filter
-      if (search) {
-        const searchLower = search.toLowerCase();
-        const matchesSearch =
-          invoice.invoiceNumber.toLowerCase().includes(searchLower) ||
-          invoice.clientName.toLowerCase().includes(searchLower) ||
-          (invoice.memo?.toLowerCase().includes(searchLower) ?? false);
-        if (!matchesSearch) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(inv =>
+        inv.invoiceNumber.toLowerCase().includes(q) ||
+        inv.clientName.toLowerCase().includes(q) ||
+        (inv.memo?.toLowerCase().includes(q) ?? false)
+      );
+    }
+
+    switch (filter) {
+      case "overdue":
+        result = result.filter(inv => getDaysOverdue(inv.dueDate) > 0);
+        break;
+      case "due-soon":
+        result = result.filter(inv => { const d = getDaysUntilDue(inv.dueDate); return d >= 0 && d <= 7; });
+        break;
+      case "unassigned":
+        result = result.filter(inv => inv.projectId === null);
+        break;
+    }
+
+    return result;
+  }, [openInvoices, search, filter]);
+
+  const totals = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return openInvoices.reduce(
+      (acc, inv) => {
+        acc.total += inv.balance;
+        const daysOver = getDaysOverdue(inv.dueDate);
+        if (daysOver > 0) { acc.overdue += inv.balance; acc.overdueCount++; }
+        return acc;
+      },
+      { total: 0, overdue: 0, overdueCount: 0 }
+    );
+  }, [openInvoices]);
+
+  const clientGroups = useMemo(() => {
+    const groups = new Map<string, ClientGroup>();
+    filteredInvoices.forEach(inv => {
+      const name = inv.clientName;
+      if (!groups.has(name)) {
+        groups.set(name, { clientName: name, totalBalance: 0, overdueBalance: 0, maxDaysOverdue: 0, invoices: [] });
       }
-
-      // Status filter
-      const daysOverdue = getDaysOverdue(invoice.dueDate);
-      const daysUntil = getDaysUntilDue(invoice.dueDate);
-
-      switch (filter) {
-        case "overdue":
-          if (daysOverdue <= 0) return false;
-          break;
-        case "due-soon":
-          if (daysUntil < 0 || daysUntil > 7) return false;
-          break;
-        case "unassigned":
-          if (invoice.projectId !== null) return false;
-          break;
-      }
-
-      return true;
+      const g = groups.get(name)!;
+      g.totalBalance += inv.balance;
+      const daysOver = getDaysOverdue(inv.dueDate);
+      if (daysOver > 0) { g.overdueBalance += daysOver > 0 ? inv.balance : 0; g.maxDaysOverdue = Math.max(g.maxDaysOverdue, daysOver); }
+      g.invoices.push(inv);
     });
-  }, [invoices, search, filter]);
+    return Array.from(groups.values()).sort((a, b) => b.totalBalance - a.totalBalance);
+  }, [filteredInvoices]);
+
+  const maxGroupBalance = useMemo(() => Math.max(...clientGroups.map(g => g.totalBalance), 1), [clientGroups]);
 
   if (loading) {
     return (
-      <div className={cn("transition-all duration-300")}>
-        <Header
-          title="Receivables"
-          description="Invoices owed to DeHyl"
-        />
-        <div className="p-4 md:p-6 space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-24 rounded-lg" />
-            ))}
+      <div>
+        <Header title="Invoices" />
+        <div className="max-w-5xl mx-auto px-6 md:px-10 py-12 space-y-8">
+          <Skeleton className="h-16 w-64" />
+          <Skeleton className="h-4 w-96" />
+          <div className="space-y-4 mt-12">
+            {[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
           </div>
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-96 w-full" />
         </div>
       </div>
     );
@@ -173,71 +174,218 @@ function ReceivablesContent() {
 
   if (error) {
     return (
-      <div className={cn("transition-all duration-300")}>
-        <Header
-          title="Receivables"
-          description="Invoices owed to DeHyl"
-        />
-        <div className="p-4 md:p-6">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-            <p className="mt-2 text-sm text-red-600 dark:text-red-300">
-              Make sure QuickBooks is connected in Settings, then sync your data.
-            </p>
-          </div>
+      <div>
+        <Header title="Invoices" />
+        <div className="max-w-5xl mx-auto px-6 md:px-10 py-12">
+          <p className="text-sm text-destructive">{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      className={cn(
-        "transition-all duration-300",
-        sidebarOpen ? "md:ml-0" : "md:ml-0"
-      )}
-    >
-      <Header
-        title="Receivables"
-        description="Invoices owed to DeHyl"
-      />
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Summary */}
-        <InvoicesSummary invoices={filteredInvoices} />
+    <div className="min-h-screen bg-background">
+      <Header title="Invoices" />
 
-        {/* Filters */}
-        <InvoicesFilters
-          search={search}
-          onSearchChange={setSearch}
-          filter={filter}
-          onFilterChange={setFilter}
-        />
+      <div className="max-w-5xl mx-auto px-6 md:px-10 pt-8 pb-24">
 
-        {/* Table */}
-        <InvoicesTable
-          invoices={filteredInvoices}
-          projects={projects}
-          onAssign={handleAssign}
-          onAmountUpdate={handleAmountUpdate}
-        />
+        {/* Headline */}
+        <div className="mb-2">
+          <p className="font-serif text-5xl font-semibold tracking-tight tabular-nums leading-none text-foreground">
+            {formatCurrency(totals.total)}
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            outstanding across {openInvoices.length} invoice{openInvoices.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+
+        {/* Prose */}
+        <p className="text-sm leading-relaxed text-muted-foreground mt-4 mb-12 max-w-lg">
+          {totals.overdueCount > 0
+            ? `${formatCurrency(totals.overdue)} is overdue across ${totals.overdueCount} invoice${totals.overdueCount !== 1 ? "s" : ""}. ${clientGroups.filter(g => g.maxDaysOverdue > 60).length > 0 ? `${clientGroups.filter(g => g.maxDaysOverdue > 60).length} client${clientGroups.filter(g => g.maxDaysOverdue > 60).length !== 1 ? "s" : ""} 60+ days overdue.` : ""}`
+            : "All invoices are current. No overdue balances."
+          }
+        </p>
+
+        {/* Overdue callout */}
+        {totals.overdue > 0 && (
+          <div className="pl-5 border-l-2 border-red-300 dark:border-red-800 py-2 mb-10">
+            <p className="font-medium text-red-700 dark:text-red-400">
+              {formatCurrency(totals.overdue)} overdue
+            </p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {totals.overdueCount} invoice{totals.overdueCount !== 1 ? "s" : ""} past due date
+            </p>
+          </div>
+        )}
+
+        {/* Controls */}
+        <div className="flex items-center gap-3 mb-8 flex-wrap">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+            <Input
+              placeholder="Search invoices..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-9 text-sm border-muted/50"
+            />
+          </div>
+          {["all", "overdue", "due-soon", "unassigned"].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                "text-xs px-3 py-1.5 rounded-full transition-colors",
+                filter === f ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {f === "all" ? "All" : f === "overdue" ? "Overdue" : f === "due-soon" ? "Due soon" : "Unassigned"}
+            </button>
+          ))}
+        </div>
+
+        {/* Client groups */}
+        <div className="space-y-1">
+          {clientGroups.map((group) => {
+            const isExpanded = expandedClient === group.clientName;
+            const barPct = (group.totalBalance / maxGroupBalance) * 100;
+            const overduePct = group.totalBalance > 0 ? (group.overdueBalance / group.totalBalance) * 100 : 0;
+
+            return (
+              <div key={group.clientName} className="border-b border-muted/30 last:border-0">
+                <button
+                  onClick={() => setExpandedClient(isExpanded ? null : group.clientName)}
+                  className="w-full py-4 -mx-3 px-3 hover:bg-muted/20 rounded-sm transition-colors text-left"
+                >
+                  <div className="flex items-start justify-between gap-6">
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium">{group.clientName}</span>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {group.invoices.length} invoice{group.invoices.length !== 1 ? "s" : ""}
+                        {group.maxDaysOverdue > 0 && (
+                          <span className="text-red-600 dark:text-red-400"> &middot; {group.maxDaysOverdue}d overdue</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="font-serif text-lg font-semibold tabular-nums tracking-tight">
+                        {formatCurrency(group.totalBalance)}
+                      </span>
+                      {isExpanded
+                        ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                        : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      }
+                    </div>
+                  </div>
+
+                  {/* Bar with overdue portion */}
+                  <div className="mt-3 h-1 rounded-full bg-muted/30 overflow-hidden">
+                    <div className="h-full flex rounded-full overflow-hidden" style={{ width: `${barPct}%` }}>
+                      {overduePct > 0 && (
+                        <div className="h-full bg-red-400/60" style={{ width: `${overduePct}%` }} />
+                      )}
+                      <div className="h-full bg-emerald-400/60 flex-1" />
+                    </div>
+                  </div>
+                </button>
+
+                {/* Expanded invoices */}
+                {isExpanded && (
+                  <div className="pb-4 px-3 -mx-3">
+                    <div className="ml-4 border-l border-muted/40 pl-4 space-y-2">
+                      {group.invoices
+                        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+                        .map(inv => {
+                          const daysOver = getDaysOverdue(inv.dueDate);
+                          const project = projects.find(p => p.id === inv.projectId);
+
+                          return (
+                            <div key={inv.id} className="flex items-center justify-between py-1.5 text-sm gap-4">
+                              <div className="min-w-0 flex-1">
+                                <span className="text-foreground font-medium">{inv.invoiceNumber}</span>
+                                <span className="text-muted-foreground ml-2">
+                                  due {formatDate(inv.dueDate)}
+                                  {daysOver > 0 && (
+                                    <span className="text-red-600 dark:text-red-400 ml-1">({daysOver}d overdue)</span>
+                                  )}
+                                </span>
+                                {project && (
+                                  <span className="text-muted-foreground ml-2">&middot; {project.code}</span>
+                                )}
+                                {!project && inv.matchSuggestions.length > 0 && (
+                                  <span className="text-amber-600 ml-2 inline-flex items-center gap-0.5">
+                                    <Lightbulb className="h-3 w-3" />
+                                    {inv.matchSuggestions[0].projectCode}
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleAssign(inv.id, inv.matchSuggestions[0].projectId); }}
+                                      className="ml-1 text-green-600 hover:text-green-700"
+                                    >
+                                      <Check className="h-3 w-3" />
+                                    </button>
+                                  </span>
+                                )}
+                                {!project && inv.matchSuggestions.length === 0 && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setSelectedInvoice(inv); setDialogOpen(true); }}
+                                    className="text-muted-foreground hover:text-foreground ml-2 inline-flex items-center gap-0.5"
+                                  >
+                                    <LinkIcon className="h-3 w-3" /> assign
+                                  </button>
+                                )}
+                              </div>
+                              <span className={cn(
+                                "tabular-nums font-medium shrink-0",
+                                daysOver > 0 && "text-red-600 dark:text-red-400"
+                              )}>
+                                {formatCurrency(inv.balance)}
+                              </span>
+                            </div>
+                          );
+                        })
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {clientGroups.length === 0 && (
+            <div className="text-center py-16 text-muted-foreground">
+              <p className="text-sm">No outstanding invoices</p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
-}
 
-function ReceivablesLoading() {
-  return (
-    <div className="p-4 md:p-6 space-y-6">
-      <Skeleton className="h-32 w-full" />
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-96 w-full" />
+      <ProjectSelectorDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        projects={projects}
+        currentProjectId={selectedInvoice?.projectId ?? null}
+        suggestions={selectedInvoice?.matchSuggestions ?? []}
+        onSelect={handleDialogAssign}
+        title="Assign Invoice to Project"
+        description={
+          selectedInvoice
+            ? `Link invoice ${selectedInvoice.invoiceNumber} (${formatCurrency(selectedInvoice.amount)}) to a project.`
+            : "Select a project."
+        }
+      />
     </div>
   );
 }
 
 export default function ReceivablesPage() {
   return (
-    <Suspense fallback={<ReceivablesLoading />}>
+    <Suspense fallback={
+      <div>
+        <Header title="Invoices" />
+        <div className="max-w-5xl mx-auto px-6 md:px-10 py-12">
+          <Skeleton className="h-16 w-64" />
+        </div>
+      </div>
+    }>
       <ReceivablesContent />
     </Suspense>
   );

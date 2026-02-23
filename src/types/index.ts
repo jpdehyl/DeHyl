@@ -246,7 +246,8 @@ export type AlertType =
   | 'unassigned_invoices'
   | 'invoice_suggestions'
   | 'aging_receivables'
-  | 'negative_profit';
+  | 'negative_profit'
+  | 'amex_statement_due';
 
 export type AlertSeverity = 'critical' | 'warning' | 'info';
 
@@ -271,6 +272,25 @@ export interface ActivityItem {
   description: string;
   amount?: number;
   date: Date;
+}
+
+// -------------------------------------------
+// Sync Conflicts
+// -------------------------------------------
+export type SyncConflictStatus = 'pending' | 'resolved_keep_app' | 'resolved_keep_external' | 'dismissed';
+
+export interface SyncConflict {
+  id: string;
+  source: 'quickbooks' | 'google_drive';
+  entityType: 'invoice' | 'bill' | 'project';
+  entityId: string;
+  externalId: string;
+  fieldName: string;
+  appValue: string | null;
+  externalValue: string | null;
+  status: SyncConflictStatus;
+  resolvedAt: Date | null;
+  createdAt: Date;
 }
 
 // -------------------------------------------

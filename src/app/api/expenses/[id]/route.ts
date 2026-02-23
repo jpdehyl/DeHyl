@@ -85,11 +85,6 @@ export async function PATCH(
           code,
           client_name,
           description
-        ),
-        invoices:invoice_id (
-          id,
-          invoice_number,
-          status
         )
       `)
       .single();

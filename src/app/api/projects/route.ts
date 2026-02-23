@@ -29,6 +29,11 @@ export async function GET() {
     .from("bills")
     .select("project_id, amount, balance");
 
+  // Fetch all project_costs (manual cost entries) to include in cost calculation
+  const { data: projectCostsData } = await supabase
+    .from("project_costs")
+    .select("project_id, amount");
+
   // Get last sync time
   const { data: syncLog } = await supabase
     .from("sync_log")
@@ -42,6 +47,7 @@ export async function GET() {
   // Compute totals per project
   const invoiceTotals = new Map<string, { invoiced: number; outstanding: number }>();
   const billTotals = new Map<string, number>();
+  const manualCostTotals = new Map<string, number>();
 
   (invoicesData || []).forEach((inv) => {
     if (inv.project_id) {
@@ -59,10 +65,19 @@ export async function GET() {
     }
   });
 
+  (projectCostsData || []).forEach((cost) => {
+    if (cost.project_id) {
+      const current = manualCostTotals.get(cost.project_id) || 0;
+      manualCostTotals.set(cost.project_id, current + Number(cost.amount));
+    }
+  });
+
   // Transform to ProjectWithTotals type
   const projects: ProjectWithTotals[] = (projectsData || []).map((proj) => {
     const invTotals = invoiceTotals.get(proj.id) || { invoiced: 0, outstanding: 0 };
-    const costs = billTotals.get(proj.id) || 0;
+    const billCosts = billTotals.get(proj.id) || 0;
+    const manualCosts = manualCostTotals.get(proj.id) || 0;
+    const costs = billCosts + manualCosts;
     const paid = invTotals.invoiced - invTotals.outstanding;
     const profit = paid - costs;
 
