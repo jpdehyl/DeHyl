@@ -1,202 +1,222 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useStoryStore } from "@/lib/stores/story-store";
-import { StoryBubbles } from "@/components/stories/StoryBubbles";
-import { StoryShell } from "@/components/stories/StoryShell";
-import { DesktopStoryView } from "@/components/stories/desktop/DesktopStoryView";
-import { Loader2, X } from "lucide-react";
-import type { StorySummariesResponse, StoryDetailResponse, SmartFeedResponse } from "@/types/stories";
+import { cn } from "@/lib/utils";
+import { Search, X, ArrowLeft, Folder, Loader2 } from "lucide-react";
+import type { ProjectStorySummary, StorySummariesResponse } from "@/types/stories";
 
 export default function StoriesPage() {
   const router = useRouter();
-  const {
-    projectSummaries,
-    setProjectSummaries,
-    currentProjectId,
-    setCurrentProject,
-    setStory,
-    isLoading,
-    setIsLoading,
-    setFeedCards,
-    setFeedLoading,
-    setUpcomingProjects,
-  } = useStoryStore();
+  const [projects, setProjects] = useState<ProjectStorySummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
-  // Fetch project summaries + smart feed in parallel
   useEffect(() => {
-    async function fetchSummaries() {
+    async function fetchProjects() {
       try {
-        setIsLoading(true);
         const res = await fetch("/api/stories");
-        if (!res.ok) throw new Error("Failed to fetch stories");
-        const data: StorySummariesResponse = await res.json();
-        setProjectSummaries(data.projects);
-
-        // Auto-select first project if none selected
-        if (!currentProjectId && data.projects.length > 0) {
-          setCurrentProject(data.projects[0].projectId);
+        if (res.ok) {
+          const data: StorySummariesResponse = await res.json();
+          setProjects(data.projects);
         }
-      } catch (err) {
-        console.error("Failed to fetch story summaries:", err);
+      } catch (error) {
+        console.error("Failed to fetch projects:", error);
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     }
+    fetchProjects();
+  }, []);
 
-    async function fetchFeed() {
-      try {
-        setFeedLoading(true);
-        const res = await fetch("/api/stories/feed");
-        if (!res.ok) throw new Error("Failed to fetch feed");
-        const data: SmartFeedResponse = await res.json();
-        setFeedCards(data.cards);
-        setUpcomingProjects(data.upcomingBids);
-      } catch (err) {
-        console.error("Failed to fetch smart feed:", err);
-      } finally {
-        setFeedLoading(false);
-      }
-    }
-
-    fetchSummaries();
-    fetchFeed();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Fetch story detail when project changes
-  const fetchStoryDetail = useCallback(
-    async (projectId: string) => {
-      // Skip if already cached
-      const existing = useStoryStore.getState().getStory(projectId);
-      if (existing) return;
-
-      try {
-        setIsLoading(true);
-        const res = await fetch(`/api/stories/${projectId}`);
-        if (!res.ok) throw new Error("Failed to fetch story");
-        const data: StoryDetailResponse = await res.json();
-        setStory(projectId, data.story);
-      } catch (err) {
-        console.error("Failed to fetch story detail:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [setStory, setIsLoading]
-  );
-
-  useEffect(() => {
-    if (currentProjectId) {
-      fetchStoryDetail(currentProjectId);
-    }
-  }, [currentProjectId, fetchStoryDetail]);
-
-  // Pre-fetch adjacent projects
-  useEffect(() => {
-    if (!currentProjectId || projectSummaries.length === 0) return;
-    const currentIndex = projectSummaries.findIndex(
-      (p) => p.projectId === currentProjectId
+  const filteredProjects = useMemo(() => {
+    if (!search) return projects;
+    const searchLower = search.toLowerCase();
+    return projects.filter(
+      (p) =>
+        p.projectCode.toLowerCase().includes(searchLower) ||
+        p.projectName.toLowerCase().includes(searchLower) ||
+        p.clientName.toLowerCase().includes(searchLower) ||
+        p.clientCode.toLowerCase().includes(searchLower)
     );
-    const adjacentIds = [
-      projectSummaries[currentIndex - 1]?.projectId,
-      projectSummaries[currentIndex + 1]?.projectId,
-    ].filter(Boolean) as string[];
+  }, [projects, search]);
 
-    for (const id of adjacentIds) {
-      fetchStoryDetail(id);
-    }
-  }, [currentProjectId, projectSummaries, fetchStoryDetail]);
+  const activeProjects = filteredProjects.filter((p) => p.status === "active");
+  const closedProjects = filteredProjects.filter((p) => p.status === "closed");
 
-  const handleSelectProject = useCallback(
-    (projectId: string) => {
-      setCurrentProject(projectId);
-    },
-    [setCurrentProject]
-  );
+  const handleProjectClick = (projectId: string) => {
+    router.push(`/projects/${projectId}`);
+  };
 
-  // Loading state (mobile style on mobile, handled by DesktopStoryView on desktop)
-  if (isLoading && projectSummaries.length === 0) {
+  if (loading) {
     return (
-      <>
-        {/* Mobile loading */}
-        <div className="lg:hidden h-full flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950">
-          <Loader2 className="h-8 w-8 text-white/50 animate-spin" />
-        </div>
-        {/* Desktop loading */}
-        <div className="hidden lg:flex h-screen items-center justify-center">
-          <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
-        </div>
-      </>
-    );
-  }
-
-  if (projectSummaries.length === 0) {
-    return (
-      <>
-        {/* Mobile empty */}
-        <div className="lg:hidden h-full flex items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950">
-          <div className="text-center text-white/60 px-8">
-            <p className="text-lg font-medium">No projects yet</p>
-            <p className="text-sm mt-2">
-              Projects will appear here once they have data.
-            </p>
-            <button
-              onClick={() => router.push("/projects")}
-              className="mt-4 text-sm text-primary hover:underline"
-            >
-              Go to Projects
-            </button>
-          </div>
-        </div>
-        {/* Desktop empty */}
-        <div className="hidden lg:block">
-          <DesktopStoryView
-            projects={[]}
-            currentProjectId={null}
-            onSelectProject={handleSelectProject}
-          />
-        </div>
-      </>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
     );
   }
 
   return (
-    <>
-      {/* Mobile: full-screen immersive story view */}
-      <div className="lg:hidden h-full flex flex-col">
-        {/* Close button */}
-        <div className="absolute top-[env(safe-area-inset-top,8px)] right-3 z-50">
-          <button
-            onClick={() => router.push("/")}
-            className="p-2 rounded-full bg-black/30 backdrop-blur-sm text-white/80 hover:text-white hover:bg-black/50 transition-colors"
-            data-no-tap
-          >
-            <X className="h-4 w-4" />
-          </button>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
+        <div className="max-w-5xl mx-auto px-6 py-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold">Stories</h1>
+              <p className="text-muted-foreground mt-1">
+                Choose a project to read its story
+              </p>
+            </div>
+            <button
+              onClick={() => router.push("/")}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Dashboard
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
         </div>
+      </header>
 
-        {/* Story bubbles */}
-        <StoryBubbles
-          projects={projectSummaries}
-          currentProjectId={currentProjectId}
-          onSelectProject={handleSelectProject}
-        />
+      {/* Projects Grid */}
+      <main className="max-w-5xl mx-auto px-6 py-8">
+        {/* Active Projects */}
+        {activeProjects.length > 0 && (
+          <section className="mb-12">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+              Active Projects
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activeProjects.map((project) => (
+                <ProjectCard
+                  key={project.projectId}
+                  project={project}
+                  onClick={() => handleProjectClick(project.projectId)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
-        {/* Story content */}
-        <div className="flex-1 min-h-0">
-          <StoryShell />
+        {/* Completed Projects */}
+        {closedProjects.length > 0 && (
+          <section>
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+              Completed Projects ({closedProjects.length})
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {closedProjects.map((project) => (
+                <ProjectCard
+                  key={project.projectId}
+                  project={project}
+                  onClick={() => handleProjectClick(project.projectId)}
+                  compact
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Empty State */}
+        {filteredProjects.length === 0 && (
+          <div className="text-center py-16">
+            <Folder className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+            <p className="text-muted-foreground">
+              {search ? "No projects match your search" : "No projects yet"}
+            </p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+interface ProjectCardProps {
+  project: ProjectStorySummary;
+  onClick: () => void;
+  compact?: boolean;
+}
+
+function ProjectCard({ project, onClick, compact }: ProjectCardProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full text-left rounded-xl border bg-card transition-all",
+        "hover:shadow-lg hover:border-primary/50 hover:scale-[1.02]",
+        compact ? "p-4" : "overflow-hidden"
+      )}
+    >
+      {!compact && (
+        <div className="h-32 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 relative">
+          {project.thumbnailUrl ? (
+            <img
+              src={project.thumbnailUrl}
+              alt={project.projectName}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Folder className="h-12 w-12 text-slate-300 dark:text-slate-600" />
+            </div>
+          )}
+          <div className="absolute top-3 left-3">
+            <span className="px-2 py-1 text-xs font-mono font-medium bg-black/60 text-white rounded">
+              {project.projectCode}
+            </span>
+          </div>
+          {project.status === "active" && (
+            <div className="absolute top-3 right-3">
+              <span className="flex items-center gap-1 px-2 py-1 text-xs bg-emerald-500 text-white rounded">
+                <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                Active
+              </span>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
-      {/* Desktop: blog-style card layout */}
-      <div className="hidden lg:block">
-        <DesktopStoryView
-          projects={projectSummaries}
-          currentProjectId={currentProjectId}
-          onSelectProject={handleSelectProject}
-        />
+      <div className={cn(compact ? "" : "p-4")}>
+        {compact && (
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-mono text-muted-foreground">
+              {project.projectCode}
+            </span>
+            <span className="text-xs px-1.5 py-0.5 rounded bg-muted">
+              {project.clientCode}
+            </span>
+          </div>
+        )}
+        <h3 className={cn("font-semibold truncate", compact ? "text-sm" : "mb-1")}>
+          {project.projectName}
+        </h3>
+        {!compact && (
+          <p className="text-sm text-muted-foreground truncate">
+            {project.clientName}
+          </p>
+        )}
       </div>
-    </>
+    </button>
   );
 }
