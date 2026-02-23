@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useCallback } from "react";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import {
@@ -105,6 +105,44 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     fetchProject();
   }, [id]);
 
+  const refetchData = useCallback(async () => {
+    const res = await fetch(`/api/projects/${id}`);
+    if (res.ok) {
+      const projectData: ProjectData = await res.json();
+      setData(projectData);
+    }
+  }, [id]);
+
+  const handleEstimateSave = useCallback(async (newValue: number) => {
+    const res = await fetch(`/api/projects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estimate_amount: newValue }),
+    });
+    if (!res.ok) throw new Error("Failed to update estimate");
+    await refetchData();
+  }, [id, refetchData]);
+
+  const handleInvoiceUpdate = useCallback(async (invoiceId: string, field: string, value: number) => {
+    const res = await fetch(`/api/invoices/${invoiceId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    if (!res.ok) throw new Error("Failed to update invoice");
+    await refetchData();
+  }, [refetchData]);
+
+  const handleBillUpdate = useCallback(async (billId: string, field: string, value: number) => {
+    const res = await fetch(`/api/bills/${billId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    if (!res.ok) throw new Error("Failed to update bill");
+    await refetchData();
+  }, [refetchData]);
+
   if (error === "not_found") {
     notFound();
   }
@@ -165,7 +203,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         <ProjectHeader project={project} />
 
         {/* Financial Summary */}
-        <ProjectFinancials project={project} />
+        <ProjectFinancials project={project} onEstimateSave={handleEstimateSave} />
 
         {/* Tabs for Timeline, Photos, Costs, and Financials */}
         <Tabs defaultValue="timeline" className="w-full">
@@ -194,8 +232,8 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           {/* Invoices and Bills Tab */}
           <TabsContent value="financials" className="mt-6">
             <div className="grid gap-6 lg:grid-cols-2">
-              <ProjectInvoices invoices={invoices} />
-              <ProjectBills bills={bills} />
+              <ProjectInvoices invoices={invoices} onInvoiceUpdate={handleInvoiceUpdate} />
+              <ProjectBills bills={bills} onBillUpdate={handleBillUpdate} />
             </div>
           </TabsContent>
         </Tabs>

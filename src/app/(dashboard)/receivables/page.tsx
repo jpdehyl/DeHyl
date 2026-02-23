@@ -63,6 +63,24 @@ function ReceivablesContent() {
     fetchData();
   }, []);
 
+  // Handle inline amount edit
+  const handleAmountUpdate = useCallback(async (invoiceId: string, field: string, value: number) => {
+    const res = await fetch(`/api/invoices/${invoiceId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    if (!res.ok) throw new Error("Failed to update invoice");
+    // Update local state
+    setInvoices((prev) =>
+      prev.map((inv) =>
+        inv.id === invoiceId
+          ? { ...inv, [field]: value, manualOverride: true }
+          : inv
+      )
+    );
+  }, []);
+
   // Handle invoice assignment
   const handleAssign = useCallback(async (invoiceId: string, projectId: string | null) => {
     try {
@@ -200,6 +218,7 @@ function ReceivablesContent() {
           invoices={filteredInvoices}
           projects={projects}
           onAssign={handleAssign}
+          onAmountUpdate={handleAmountUpdate}
         />
       </div>
     </div>

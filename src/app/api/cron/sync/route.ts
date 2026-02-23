@@ -84,7 +84,17 @@ export async function GET(request: NextRequest) {
       });
 
       if (mappedInvoices.length > 0) {
-        await supabase.from("invoices").upsert(mappedInvoices, { onConflict: "qb_id" });
+        // Exclude manually overridden invoices
+        const { data: overriddenInv } = await supabase
+          .from("invoices")
+          .select("qb_id")
+          .eq("manual_override", true);
+        const overriddenInvIds = new Set((overriddenInv || []).map((i: { qb_id: string }) => i.qb_id));
+        const invoicesToSync = mappedInvoices.filter((i) => !overriddenInvIds.has(i.qb_id));
+
+        if (invoicesToSync.length > 0) {
+          await supabase.from("invoices").upsert(invoicesToSync, { onConflict: "qb_id" });
+        }
       }
 
       // Sync bills

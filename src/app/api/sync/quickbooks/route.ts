@@ -101,9 +101,18 @@ export async function POST() {
     });
 
     if (mappedInvoices.length > 0) {
+      // Get invoices with manual_override to exclude from sync
+      const { data: overriddenInvoices } = await supabase
+        .from("invoices")
+        .select("qb_id")
+        .eq("manual_override", true);
+
+      const overriddenInvQbIds = new Set((overriddenInvoices || []).map((i) => i.qb_id));
+      const invoicesToSync = mappedInvoices.filter((i) => !overriddenInvQbIds.has(i.qb_id));
+
       // Upsert in batches to avoid payload limits
-      for (let i = 0; i < mappedInvoices.length; i += 500) {
-        const batch = mappedInvoices.slice(i, i + 500);
+      for (let i = 0; i < invoicesToSync.length; i += 500) {
+        const batch = invoicesToSync.slice(i, i + 500);
         const { error: invoiceError } = await supabase
           .from("invoices")
           .upsert(batch, { onConflict: "qb_id" });
