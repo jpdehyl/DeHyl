@@ -33,6 +33,17 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Bypass Clerk entirely for webhook/cron/portal routes (API-key authenticated)
+  const path = request.nextUrl.pathname;
+  if (
+    path.startsWith("/api/webhook") ||
+    path.startsWith("/api/cron") ||
+    path.startsWith("/api/portal") ||
+    path.startsWith("/api/daily-logs/webhook")
+  ) {
+    return NextResponse.next();
+  }
+
   return clerkHandler(request, {} as never);
 }
 
