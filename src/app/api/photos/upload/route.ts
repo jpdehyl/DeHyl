@@ -64,6 +64,16 @@ export async function POST(request: NextRequest) {
       expiresAt: new Date(tokenData.expires_at),
     });
 
+    // Persist refreshed tokens back to database
+    driveClient.setOnTokenRefresh(async (tokens) => {
+      await supabase.from("oauth_tokens").update({
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken,
+        expires_at: tokens.expiresAt.toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("provider", "google");
+    });
+
     // Create Photos folder if it doesn't exist
     const photosFolderId = await driveClient.createOrGetFolder(
       project.drive_id,

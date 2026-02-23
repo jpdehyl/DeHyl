@@ -16,6 +16,9 @@ export async function GET() {
       .neq('project_id', SHOP_PROJECT_ID);
 
     if (statsError) {
+      if (statsError.code === 'PGRST205') {
+        return NextResponse.json({ stats: { totalEntries: 0, totalAmount: 0 }, expenses: [] });
+      }
       console.error('Error fetching unbilled stats:', statsError);
       return NextResponse.json(
         { error: 'Failed to fetch unbilled expense stats' },
@@ -36,11 +39,6 @@ export async function GET() {
           code,
           client_name,
           description
-        ),
-        invoices:invoice_id (
-          id,
-          invoice_number,
-          status
         )
       `)
       .eq('status', 'unlinked')

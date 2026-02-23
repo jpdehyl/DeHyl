@@ -40,14 +40,34 @@ export async function POST() {
       expiresAt: new Date(tokenData.expires_at),
     });
 
-    // Get client mappings for resolving client names
+    // Persist refreshed tokens back to database
+    driveClient.setOnTokenRefresh(async (tokens) => {
+      await supabase.from("oauth_tokens").update({
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken,
+        expires_at: tokens.expiresAt.toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("provider", "google");
+    });
+
+    // Get client mappings for resolving client names and aliases
     const { data: clientMappings } = await supabase
       .from("client_mappings")
-      .select("code, display_name");
+      .select("code, display_name, aliases");
 
+    // Build lookup: code → display_name (exact match)
     const clientNameMap = new Map(
       (clientMappings || []).map((m) => [m.code, m.display_name])
     );
+
+    // Build alias → canonical code lookup (e.g., "Cert Demo" → "CD")
+    const aliasToCode = new Map<string, string>();
+    for (const m of clientMappings || []) {
+      aliasToCode.set(m.code.toLowerCase(), m.code);
+      for (const alias of m.aliases || []) {
+        aliasToCode.set(alias.toLowerCase(), m.code);
+      }
+    }
 
     // List project folders
     const folders = await driveClient.listProjectFolders();
@@ -65,13 +85,14 @@ export async function POST() {
         const hasEstimate = await driveClient.hasEstimateFolder(folder.id);
         const hasPBS = await driveClient.hasPBSFile(folder.id);
 
-        // Resolve client name from mapping
-        const clientName = clientNameMap.get(parsed.clientCode) || parsed.clientCode;
+        // Resolve client code via alias lookup, then get display name
+        const canonicalCode = aliasToCode.get(parsed.clientCode.toLowerCase()) || parsed.clientCode;
+        const clientName = clientNameMap.get(canonicalCode) || parsed.clientCode;
 
         return {
           drive_id: folder.id,
           code: parsed.code,
-          client_code: parsed.clientCode,
+          client_code: canonicalCode,
           client_name: clientName,
           description: parsed.description,
           status: "active",
@@ -84,13 +105,60 @@ export async function POST() {
     // Filter out null values (unparseable folders)
     const validProjects = projects.filter((p) => p !== null);
 
+    interface SyncConflict {
+      source: string;
+      entity_type: string;
+      entity_id: string;
+      external_id: string;
+      field_name: string;
+      app_value: string | null;
+      external_value: string | null;
+    }
+    const conflicts: SyncConflict[] = [];
+
     if (validProjects.length > 0) {
+      // Get existing projects to detect conflicts with user modifications
+      const driveIds = validProjects.map((p) => p.drive_id);
+      const { data: existingProjects } = await supabase
+        .from("projects")
+        .select("id, drive_id, status, client_name, description")
+        .in("drive_id", driveIds);
+
+      const existingMap = new Map(
+        (existingProjects || []).map((p) => [p.drive_id, p])
+      );
+
+      // Check for conflicts and preserve user modifications
+      for (const proj of validProjects) {
+        const existing = existingMap.get(proj.drive_id);
+        if (!existing) continue;
+
+        // If user set project to 'closed' in app but Drive still shows it, don't reopen
+        if (existing.status === "closed" && proj.status === "active") {
+          proj.status = "closed"; // Preserve user's closed status
+          conflicts.push({
+            source: "google_drive",
+            entity_type: "project",
+            entity_id: existing.id,
+            external_id: proj.drive_id,
+            field_name: "status",
+            app_value: "closed",
+            external_value: "active",
+          });
+        }
+      }
+
       const { error: projectError } = await supabase
         .from("projects")
         .upsert(validProjects, { onConflict: "drive_id" });
 
       if (projectError) {
         console.error("Failed to upsert projects:", projectError);
+      }
+
+      // Log any detected conflicts
+      if (conflicts.length > 0) {
+        await supabase.from("sync_conflicts").insert(conflicts);
       }
     }
 
@@ -110,6 +178,7 @@ export async function POST() {
       success: true,
       projects_synced: validProjects.length,
       skipped: folders.length - validProjects.length,
+      conflicts_detected: conflicts.length,
     });
   } catch (error) {
     console.error("Project sync error:", error);

@@ -12,6 +12,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/portal(.*)", // Portal API (access code validated internally)
   "/api/webhook(.*)", // Webhooks
   "/api/daily-logs/webhook(.*)", // Robbie daily log webhook
+  "/api/cron(.*)", // Vercel Cron jobs (auth via CRON_SECRET header)
 ]);
 
 const clerkHandler = clerkMiddleware(async (auth, request) => {
@@ -26,7 +27,9 @@ const clerkHandler = clerkMiddleware(async (auth, request) => {
 
 export default function middleware(request: NextRequest) {
   // Skip Clerk auth if keys are not configured
-  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || !process.env.CLERK_SECRET_KEY) {
+  const clerkPk = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const clerkSk = process.env.CLERK_SECRET_KEY;
+  if (!clerkPk || !clerkPk.startsWith("pk_") || !clerkSk || !clerkSk.startsWith("sk_")) {
     return NextResponse.next();
   }
 

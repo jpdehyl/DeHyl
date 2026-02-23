@@ -48,6 +48,16 @@ export async function POST() {
       expiresAt: new Date(tokenData.expires_at),
     });
 
+    // Persist refreshed tokens back to database
+    driveClient.setOnTokenRefresh(async (tokens) => {
+      await supabase.from("oauth_tokens").update({
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken,
+        expires_at: tokens.expiresAt.toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("provider", "google");
+    });
+
     // Fetch all projects that have a drive_id
     const { data: projects, error: projectsError } = await supabase
       .from("projects")

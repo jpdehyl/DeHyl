@@ -2,53 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  FolderKanban,
-  Receipt,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  DollarSign,
-} from "lucide-react";
-
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
 import { useAppStore } from "@/lib/store";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const navItems = [
-  {
-    title: "Dashboard",
-    href: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Projects",
-    href: "/projects",
-    icon: FolderKanban,
-  },
-  {
-    title: "Costs",
-    href: "/expenses",
-    icon: DollarSign,
-  },
-  {
-    title: "Invoices",
-    href: "/receivables",
-    icon: Receipt,
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
+  { title: "Projects", href: "/projects" },
+  { title: "Stories", href: "/stories" },
+  { title: "Costs", href: "/expenses" },
+  { title: "Invoices", href: "/receivables" },
 ];
 
 export function Sidebar() {
@@ -56,108 +18,91 @@ export function Sidebar() {
   const { sidebarOpen, toggleSidebar } = useAppStore();
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <aside
-        className={cn(
-          "fixed left-0 top-0 z-40 h-screen border-r bg-sidebar transition-all duration-300",
-          sidebarOpen ? "w-64" : "w-16"
-        )}
-      >
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div
-            className={cn(
-              "flex h-16 items-center border-b px-4",
-              sidebarOpen ? "justify-between" : "justify-center"
-            )}
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 h-screen bg-sidebar transition-all duration-300",
+        sidebarOpen ? "w-60 border-r border-sidebar-border" : "w-14"
+      )}
+    >
+      <div className="flex h-full flex-col">
+        <div
+          className={cn(
+            "flex h-14 items-center",
+            sidebarOpen ? "justify-between px-5" : "justify-center"
+          )}
+        >
+          {sidebarOpen ? (
+            <Link href="/" className="font-serif text-lg font-semibold tracking-tight text-foreground">
+              DeHyl
+            </Link>
+          ) : (
+            <Link href="/" className="font-serif text-sm font-semibold text-foreground" title="Dashboard">
+              D
+            </Link>
+          )}
+          <button
+            onClick={toggleSidebar}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
           >
-            {sidebarOpen && (
-              <Link href="/" className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
-                  D
-                </div>
-                <span className="font-semibold text-lg">DeHyl</span>
-              </Link>
+            {sidebarOpen ? (
+              <ChevronLeft className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={toggleSidebar}
-            >
-              {sidebarOpen ? (
-                <ChevronLeft className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-              <span className="sr-only">Toggle sidebar</span>
-            </Button>
-          </div>
+          </button>
+        </div>
 
-          {/* Navigation */}
-          <ScrollArea className="flex-1 py-4">
-            <nav className="grid gap-1 px-2">
-              {navItems.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== "/" && pathname.startsWith(item.href));
+        <nav className={cn("flex-1 py-4", sidebarOpen ? "px-3" : "px-1.5")}>
+          <div className="space-y-0.5">
+            {navItems.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/" && pathname.startsWith(item.href));
 
-                if (!sidebarOpen) {
-                  return (
-                    <Tooltip key={item.href}>
-                      <TooltipTrigger asChild>
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            "flex h-10 w-10 items-center justify-center rounded-lg transition-colors mx-auto",
-                            isActive
-                              ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                              : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                          )}
-                        >
-                          <item.icon className="h-5 w-5" />
-                          <span className="sr-only">{item.title}</span>
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">
-                        {item.title}
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                }
-
+              if (!sidebarOpen) {
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                      "flex h-9 w-full items-center justify-center rounded-md text-xs font-medium transition-colors",
                       isActive
-                        ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
+                    title={item.title}
                   >
-                    <item.icon className="h-5 w-5" />
-                    <span>{item.title}</span>
+                    {item.title.charAt(0)}
                   </Link>
                 );
-              })}
-            </nav>
-          </ScrollArea>
+              }
 
-          {/* Footer */}
-          {sidebarOpen && (
-            <div className="border-t p-4">
-              <p className="text-xs text-muted-foreground">
-                DeHyl Constructors Corp
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Burnaby, BC
-              </p>
-            </div>
-          )}
-        </div>
-      </aside>
-    </TooltipProvider>
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center rounded-md px-3 py-2 text-sm transition-colors",
+                    isActive
+                      ? "bg-foreground text-background font-medium"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {item.title}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        {sidebarOpen && (
+          <div className="px-5 py-4">
+            <p className="text-xs text-muted-foreground/60">
+              DeHyl Constructors Corp
+            </p>
+          </div>
+        )}
+      </div>
+    </aside>
   );
 }

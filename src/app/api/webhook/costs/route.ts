@@ -20,8 +20,97 @@ function authenticate(request: NextRequest): boolean {
   return provided === apiKey;
 }
 
-// POST /api/webhook/costs
-// Creates a cost entry for a project, looked up by project code
+/**
+ * GET /api/webhook/costs
+ * List existing project costs. Optionally filter by projectCode query param.
+ */
+export async function GET(request: NextRequest) {
+  if (!authenticate(request)) {
+    return NextResponse.json(
+      { error: "Unauthorized. Provide a valid x-api-key header." },
+      { status: 401 }
+    );
+  }
+
+  const supabase = await createClient();
+  const projectCode = request.nextUrl.searchParams.get("projectCode");
+
+  if (projectCode) {
+    // Look up project by code
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("id, code, client_name, description")
+      .eq("code", projectCode)
+      .single();
+
+    if (projectError || !project) {
+      return NextResponse.json(
+        { error: `Project not found with code '${projectCode}'.` },
+        { status: 404 }
+      );
+    }
+
+    const { data: costs, error: costsError } = await supabase
+      .from("project_costs")
+      .select("*")
+      .eq("project_id", project.id)
+      .order("cost_date", { ascending: false });
+
+    if (costsError) {
+      return NextResponse.json(
+        { error: "Failed to fetch costs" },
+        { status: 500 }
+      );
+    }
+
+    const total = (costs || []).reduce(
+      (sum, c) => sum + Number(c.amount),
+      0
+    );
+
+    return NextResponse.json({
+      project: {
+        id: project.id,
+        code: project.code,
+        clientName: project.client_name,
+        description: project.description,
+      },
+      total,
+      count: (costs || []).length,
+      costs: costs || [],
+    });
+  }
+
+  // No projectCode — return all costs with project info
+  const { data: costs, error: costsError } = await supabase
+    .from("project_costs")
+    .select("*, projects(code, client_name, description)")
+    .order("cost_date", { ascending: false })
+    .limit(200);
+
+  if (costsError) {
+    return NextResponse.json(
+      { error: "Failed to fetch costs" },
+      { status: 500 }
+    );
+  }
+
+  const total = (costs || []).reduce(
+    (sum, c) => sum + Number(c.amount),
+    0
+  );
+
+  return NextResponse.json({
+    total,
+    count: (costs || []).length,
+    costs: costs || [],
+  });
+}
+
+/**
+ * POST /api/webhook/costs
+ * Creates a cost entry for a project, looked up by project code.
+ */
 export async function POST(request: NextRequest) {
   if (!authenticate(request)) {
     return NextResponse.json(
@@ -40,12 +129,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { projectCode, amount, description, category, vendor } = body as {
+  const { projectCode, amount, description, category, vendor, costDate, notes } = body as {
     projectCode?: string;
     amount?: number;
     description?: string;
     category?: string;
     vendor?: string;
+    costDate?: string;
+    notes?: string;
   };
 
   // Validate required fields
@@ -70,6 +161,14 @@ export async function POST(request: NextRequest) {
   if (category && !VALID_CATEGORIES.includes(category)) {
     return NextResponse.json(
       { error: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  // Validate costDate format if provided
+  if (costDate && !/^\d{4}-\d{2}-\d{2}$/.test(costDate)) {
+    return NextResponse.json(
+      { error: "Invalid costDate format. Use YYYY-MM-DD." },
       { status: 400 }
     );
   }
@@ -99,10 +198,10 @@ export async function POST(request: NextRequest) {
       project_id: project.id,
       description,
       amount,
-      cost_date: new Date().toISOString().split("T")[0],
-      category: category || "materials",
+      cost_date: costDate || new Date().toISOString().split("T")[0],
+      category: category || "other",
       vendor: vendor || null,
-      notes: "Created via WhatsApp bridge",
+      notes: notes || "Created via Robbie",
     })
     .select()
     .single();

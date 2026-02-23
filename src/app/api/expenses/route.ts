@@ -24,11 +24,6 @@ export async function GET(request: NextRequest) {
           code,
           client_name,
           description
-        ),
-        invoices:invoice_id (
-          id,
-          invoice_number,
-          status
         )
       `)
       .order('cost_date', { ascending: false })
@@ -57,6 +52,10 @@ export async function GET(request: NextRequest) {
     const { data: expenses, error } = await query;
 
     if (error) {
+      if (error.code === 'PGRST205') {
+        console.warn('project_costs table not found - returning empty expenses. Run the migration to create it.');
+        return NextResponse.json({ expenses: [] });
+      }
       console.error('Error fetching expenses:', error);
       return NextResponse.json(
         { error: 'Failed to fetch expenses' },
@@ -160,16 +159,17 @@ export async function POST(request: NextRequest) {
           code,
           client_name,
           description
-        ),
-        invoices:invoice_id (
-          id,
-          invoice_number,
-          status
         )
       `)
       .single();
 
     if (error) {
+      if (error.code === 'PGRST205') {
+        return NextResponse.json(
+          { error: 'Cost tracking table not set up. Please run the database migration first.' },
+          { status: 503 }
+        );
+      }
       console.error('Error creating expense:', error);
       return NextResponse.json(
         { error: 'Failed to create expense entry' },
