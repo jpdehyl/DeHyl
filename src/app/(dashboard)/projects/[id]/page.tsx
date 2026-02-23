@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useCallback } from "react";
-import { notFound } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import {
   ProjectHeader,
@@ -74,10 +74,16 @@ function ProjectSkeleton() {
 
 export default function ProjectPage({ params }: ProjectPageProps) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
   const { sidebarOpen } = useAppStore();
   const [data, setData] = useState<ProjectData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Support deep-linking to a specific tab via ?tab= query param
+  const initialTab = searchParams.get("tab") || "timeline";
+  const validTabs = ["timeline", "photos", "costs", "financials"];
+  const defaultTab = validTabs.includes(initialTab) ? initialTab : "timeline";
 
   useEffect(() => {
     async function fetchProject() {
@@ -206,7 +212,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         <ProjectFinancials project={project} onEstimateSave={handleEstimateSave} />
 
         {/* Tabs for Timeline, Photos, Costs, and Financials */}
-        <Tabs defaultValue="timeline" className="w-full">
+        <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="grid w-full max-w-2xl grid-cols-4 h-auto">
             <TabsTrigger value="timeline" className="py-2.5 text-xs sm:text-sm">Timeline</TabsTrigger>
             <TabsTrigger value="photos" className="py-2.5 text-xs sm:text-sm">Photos</TabsTrigger>

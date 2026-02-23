@@ -184,7 +184,14 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
                     {project.description}
                   </TableCell>
                   <TableCell className="text-right hidden sm:table-cell">
-                    <div className="flex items-center justify-end gap-2">
+                    <div
+                      className="flex items-center justify-end gap-2 rounded px-2 py-1 -mx-2 -my-1 hover:bg-primary/10 hover:underline cursor-pointer transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/projects/${project.id}/estimate`);
+                      }}
+                      title="Click to edit estimate"
+                    >
                       {project.hasEstimate ? (
                         <Tooltip>
                           <TooltipTrigger>
@@ -208,27 +215,54 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
                     </div>
                   </TableCell>
                   <TableCell className="text-right hidden lg:table-cell">
-                    {formatCurrency(project.totals.invoiced)}
+                    <span
+                      className="rounded px-2 py-1 -mx-2 -my-1 hover:bg-primary/10 hover:underline cursor-pointer transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/projects/${project.id}?tab=financials`);
+                      }}
+                      title="Click to view invoices"
+                    >
+                      {formatCurrency(project.totals.invoiced)}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right hidden lg:table-cell">
-                    {formatCurrency(project.totals.costs)}
+                    <span
+                      className="rounded px-2 py-1 -mx-2 -my-1 hover:bg-primary/10 hover:underline cursor-pointer transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/projects/${project.id}?tab=costs`);
+                      }}
+                      title="Click to view/edit costs"
+                    >
+                      {formatCurrency(project.totals.costs)}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <span
-                      className={cn(
-                        "font-medium",
-                        project.totals.profit >= 0
-                          ? "text-success"
-                          : "text-destructive"
-                      )}
+                    <div
+                      className="inline-block rounded px-2 py-1 -mx-2 -my-1 hover:bg-primary/10 hover:underline cursor-pointer transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/projects/${project.id}?tab=financials`);
+                      }}
+                      title="Click to view financial breakdown"
                     >
-                      {formatCurrency(project.totals.profit)}
-                    </span>
-                    {project.totals.invoiced > 0 && (
-                      <span className="text-xs text-muted-foreground block">
-                        {profitMargin.toFixed(0)}%
+                      <span
+                        className={cn(
+                          "font-medium",
+                          project.totals.profit >= 0
+                            ? "text-success"
+                            : "text-destructive"
+                        )}
+                      >
+                        {formatCurrency(project.totals.profit)}
                       </span>
-                    )}
+                      {project.totals.invoiced > 0 && (
+                        <span className="text-xs text-muted-foreground block">
+                          {profitMargin.toFixed(0)}%
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge
