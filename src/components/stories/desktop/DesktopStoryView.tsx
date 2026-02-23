@@ -1,10 +1,12 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useStoryStore } from "@/lib/stores/story-store";
 import { NarrativeStoryView } from "./NarrativeStoryView";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ActiveProjectCard } from "./ActiveProjectCard";
+import { CompletedProjectsList } from "./CompletedProjectsList";
+import { ArrowLeft, Loader2, FolderOpen } from "lucide-react";
 import type { ProjectStorySummary } from "@/types/stories";
 
 interface DesktopStoryViewProps {
@@ -38,8 +40,9 @@ export function DesktopStoryView({
   );
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
-      <header className="mb-10">
+    <div className="max-w-4xl mx-auto px-6 py-10">
+      {/* Header */}
+      <header className="mb-8">
         <div className="flex items-center justify-between mb-1">
           <h1 className="text-3xl font-serif font-bold tracking-tight text-foreground">
             Stories
@@ -57,8 +60,9 @@ export function DesktopStoryView({
         </p>
       </header>
 
+      {/* Needs Attention */}
       {urgentItems.length > 0 && !feedLoading && (
-        <div className="mb-10 border-l-2 border-amber-400 pl-4 py-1">
+        <div className="mb-8 border-l-2 border-amber-400 pl-4 py-1">
           <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-2">
             Needs attention
           </p>
@@ -88,54 +92,47 @@ export function DesktopStoryView({
         </div>
       )}
 
-      <nav className="mb-10">
-        {activeProjects.length > 0 && (
-          <div className="mb-6">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-              Active Projects
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {activeProjects.map((p) => (
-                <button
-                  key={p.projectId}
-                  onClick={() => onSelectProject(p.projectId)}
-                  className={`px-3 py-1.5 rounded-full text-sm transition-all ${
-                    currentProjectId === p.projectId
-                      ? "bg-foreground text-background font-medium"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                  }`}
-                >
-                  {p.projectCode}
-                </button>
-              ))}
-            </div>
+      {/* Active Projects - Featured Cards */}
+      {activeProjects.length > 0 && (
+        <section className="mb-8">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-4">
+            Active Projects
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {activeProjects.map((project) => (
+              <ActiveProjectCard
+                key={project.projectId}
+                project={project}
+                isSelected={currentProjectId === project.projectId}
+                onSelect={() => onSelectProject(project.projectId)}
+              />
+            ))}
           </div>
-        )}
-        {closedProjects.length > 0 && (
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-              Completed
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {closedProjects.map((p) => (
-                <button
-                  key={p.projectId}
-                  onClick={() => onSelectProject(p.projectId)}
-                  className={`px-3 py-1.5 rounded-full text-sm transition-all ${
-                    currentProjectId === p.projectId
-                      ? "bg-foreground text-background font-medium"
-                      : "bg-muted/50 text-muted-foreground/70 hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {p.projectCode}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </nav>
+        </section>
+      )}
 
-      <div className="border-t pt-10">
+      {/* No active projects message */}
+      {activeProjects.length === 0 && projects.length > 0 && (
+        <div className="mb-8 p-6 border border-dashed rounded-lg text-center">
+          <FolderOpen className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">
+            No active projects right now
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Select a completed project below to view its story
+          </p>
+        </div>
+      )}
+
+      {/* Completed Projects - Compact List */}
+      <CompletedProjectsList
+        projects={closedProjects}
+        selectedProjectId={currentProjectId}
+        onSelectProject={onSelectProject}
+      />
+
+      {/* Selected Project Story */}
+      <div className="border-t mt-10 pt-10">
         {isLoading && !story ? (
           <div className="flex items-center justify-center h-48">
             <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
@@ -143,9 +140,11 @@ export function DesktopStoryView({
         ) : story ? (
           <NarrativeStoryView story={story} />
         ) : (
-          <div className="text-center py-20">
+          <div className="text-center py-16">
             <p className="text-muted-foreground text-sm">
-              Select a project above to read its story.
+              {projects.length > 0
+                ? "Select a project above to read its story."
+                : "No projects yet. Projects will appear here once they have data."}
             </p>
           </div>
         )}
