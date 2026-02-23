@@ -2,15 +2,17 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { EditableAmount } from "@/components/ui/editable-amount";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { ProjectWithTotals } from "@/types";
 import { ArrowRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface ProjectFinancialsProps {
   project: ProjectWithTotals;
+  onEstimateSave?: (newValue: number) => Promise<void>;
 }
 
-export function ProjectFinancials({ project }: ProjectFinancialsProps) {
+export function ProjectFinancials({ project, onEstimateSave }: ProjectFinancialsProps) {
   const { estimateAmount, totals } = project;
   const { invoiced, paid, outstanding, costs, profit } = totals;
 
@@ -102,9 +104,17 @@ export function ProjectFinancials({ project }: ProjectFinancialsProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {estimateAmount ? formatCurrency(estimateAmount) : "Not set"}
-            </div>
+            {onEstimateSave ? (
+              <EditableAmount
+                value={estimateAmount || 0}
+                onSave={onEstimateSave}
+                className="text-2xl font-bold"
+              />
+            ) : (
+              <div className="text-2xl font-bold">
+                {estimateAmount ? formatCurrency(estimateAmount) : "Not set"}
+              </div>
+            )}
             {estimateAmount && (
               <>
                 <Progress value={invoicedPercent} className="mt-2 h-2" />

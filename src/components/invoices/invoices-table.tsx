@@ -36,6 +36,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ProjectSelectorDialog } from "@/components/shared/project-selector-dialog";
+import { EditableAmount } from "@/components/ui/editable-amount";
 import { cn, formatCurrency, formatDate, getDaysOverdue } from "@/lib/utils";
 import type { InvoiceWithSuggestions, ProjectWithTotals } from "@/types";
 
@@ -43,6 +44,7 @@ interface InvoicesTableProps {
   invoices: InvoiceWithSuggestions[];
   projects?: ProjectWithTotals[];
   onAssign?: (invoiceId: string, projectId: string | null) => Promise<void>;
+  onAmountUpdate?: (invoiceId: string, field: string, value: number) => Promise<void>;
 }
 
 type SortKey = "invoiceNumber" | "clientName" | "amount" | "dueDate" | "status";
@@ -52,6 +54,7 @@ export function InvoicesTable({
   invoices,
   projects = [],
   onAssign,
+  onAmountUpdate,
 }: InvoicesTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -268,12 +271,28 @@ export function InvoicesTable({
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <span className={invoice.balance > 0 ? "text-warning font-medium" : ""}>
-                    {formatCurrency(invoice.balance)}
-                  </span>
-                  <div className="text-xs text-muted-foreground">
-                    of {formatCurrency(invoice.amount)}
-                  </div>
+                  {onAmountUpdate ? (
+                    <div>
+                      <EditableAmount
+                        value={invoice.balance}
+                        onSave={(v) => onAmountUpdate(invoice.id, "balance", v)}
+                        className={cn("text-sm font-medium", invoice.balance > 0 && "text-warning")}
+                        isOverridden={invoice.manualOverride}
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        of {formatCurrency(invoice.amount)}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <span className={invoice.balance > 0 ? "text-warning font-medium" : ""}>
+                        {formatCurrency(invoice.balance)}
+                      </span>
+                      <div className="text-xs text-muted-foreground">
+                        of {formatCurrency(invoice.amount)}
+                      </div>
+                    </>
+                  )}
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">
                   <div

@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ProjectSelectorDialog } from "@/components/shared/project-selector-dialog";
+import { EditableAmount } from "@/components/ui/editable-amount";
 import { cn, formatCurrency, formatDate, getDaysOverdue, getDaysUntilDue } from "@/lib/utils";
 import type { Bill, ProjectWithTotals } from "@/types";
 
@@ -35,6 +36,7 @@ interface BillsTableProps {
   bills: Bill[];
   projects?: ProjectWithTotals[];
   onAssign?: (billId: string, projectId: string | null) => Promise<void>;
+  onAmountUpdate?: (billId: string, field: string, value: number) => Promise<void>;
 }
 
 type SortKey = "vendorName" | "amount" | "dueDate" | "status";
@@ -44,6 +46,7 @@ export function BillsTable({
   bills,
   projects = [],
   onAssign,
+  onAmountUpdate,
 }: BillsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -222,18 +225,36 @@ export function BillsTable({
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <span
-                    className={cn(
-                      "font-medium",
-                      bill.balance > 0 && "text-destructive"
-                    )}
-                  >
-                    {formatCurrency(bill.balance)}
-                  </span>
-                  {bill.balance !== bill.amount && (
-                    <div className="text-xs text-muted-foreground">
-                      of {formatCurrency(bill.amount)}
+                  {onAmountUpdate ? (
+                    <div>
+                      <EditableAmount
+                        value={bill.balance}
+                        onSave={(v) => onAmountUpdate(bill.id, "balance", v)}
+                        className={cn("text-sm font-medium", bill.balance > 0 && "text-destructive")}
+                        isOverridden={bill.manualOverride}
+                      />
+                      {bill.balance !== bill.amount && (
+                        <div className="text-xs text-muted-foreground">
+                          of {formatCurrency(bill.amount)}
+                        </div>
+                      )}
                     </div>
+                  ) : (
+                    <>
+                      <span
+                        className={cn(
+                          "font-medium",
+                          bill.balance > 0 && "text-destructive"
+                        )}
+                      >
+                        {formatCurrency(bill.balance)}
+                      </span>
+                      {bill.balance !== bill.amount && (
+                        <div className="text-xs text-muted-foreground">
+                          of {formatCurrency(bill.amount)}
+                        </div>
+                      )}
+                    </>
                   )}
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">

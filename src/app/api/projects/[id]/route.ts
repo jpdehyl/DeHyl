@@ -2,6 +2,65 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { ProjectWithTotals, Invoice, Bill } from "@/types";
 
+// PATCH /api/projects/[id] — Update project fields (e.g. estimate_amount)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const allowedFields = [
+    "estimate_amount",
+    "final_cost",
+    "final_revenue",
+    "location",
+    "status",
+    "description",
+  ];
+
+  const updates: Record<string, unknown> = {};
+  for (const field of allowedFields) {
+    if (body[field] !== undefined) {
+      updates[field] = body[field];
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json(
+      { error: "No valid fields to update" },
+      { status: 400 }
+    );
+  }
+
+  updates.updated_at = new Date().toISOString();
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("projects")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Project update error:", error);
+    return NextResponse.json(
+      { error: "Failed to update project" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ success: true, project: data });
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

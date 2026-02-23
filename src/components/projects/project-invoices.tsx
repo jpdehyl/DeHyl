@@ -16,14 +16,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { EditableAmount } from "@/components/ui/editable-amount";
 import { cn, formatCurrency, formatDate, getDaysOverdue } from "@/lib/utils";
 import type { Invoice } from "@/types";
 
 interface ProjectInvoicesProps {
   invoices: Invoice[];
+  onInvoiceUpdate?: (invoiceId: string, field: string, value: number) => Promise<void>;
 }
 
-export function ProjectInvoices({ invoices }: ProjectInvoicesProps) {
+export function ProjectInvoices({ invoices, onInvoiceUpdate }: ProjectInvoicesProps) {
   const total = invoices.reduce((acc, inv) => acc + inv.amount, 0);
   const outstanding = invoices.reduce((acc, inv) => acc + inv.balance, 0);
 
@@ -82,10 +84,26 @@ export function ProjectInvoices({ invoices }: ProjectInvoicesProps) {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(invoice.amount)}
+                      {onInvoiceUpdate ? (
+                        <EditableAmount
+                          value={invoice.amount}
+                          onSave={(v) => onInvoiceUpdate(invoice.id, "amount", v)}
+                          className="text-sm font-medium justify-end"
+                          isOverridden={invoice.manualOverride}
+                        />
+                      ) : (
+                        formatCurrency(invoice.amount)
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {invoice.balance > 0 ? (
+                      {onInvoiceUpdate ? (
+                        <EditableAmount
+                          value={invoice.balance}
+                          onSave={(v) => onInvoiceUpdate(invoice.id, "balance", v)}
+                          className={cn("text-sm font-medium justify-end", invoice.balance > 0 ? "text-warning" : "text-success")}
+                          isOverridden={invoice.manualOverride}
+                        />
+                      ) : invoice.balance > 0 ? (
                         <span className="text-warning">
                           {formatCurrency(invoice.balance)}
                         </span>

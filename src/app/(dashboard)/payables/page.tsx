@@ -55,6 +55,24 @@ function PayablesContent() {
     fetchData();
   }, []);
 
+  // Handle inline amount edit
+  const handleAmountUpdate = useCallback(async (billId: string, field: string, value: number) => {
+    const res = await fetch(`/api/bills/${billId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    if (!res.ok) throw new Error("Failed to update bill");
+    // Update local state
+    setBills((prev) =>
+      prev.map((bill) =>
+        bill.id === billId
+          ? { ...bill, [field]: value, manualOverride: true }
+          : bill
+      )
+    );
+  }, []);
+
   // Handle bill assignment
   const handleAssign = useCallback(async (billId: string, projectId: string | null) => {
     try {
@@ -177,6 +195,7 @@ function PayablesContent() {
           bills={filteredBills}
           projects={projects}
           onAssign={handleAssign}
+          onAmountUpdate={handleAmountUpdate}
         />
       </div>
     </div>

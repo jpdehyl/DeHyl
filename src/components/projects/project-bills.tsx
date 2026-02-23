@@ -16,14 +16,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { EditableAmount } from "@/components/ui/editable-amount";
 import { cn, formatCurrency, formatDate, getDaysOverdue, getDaysUntilDue } from "@/lib/utils";
 import type { Bill } from "@/types";
 
 interface ProjectBillsProps {
   bills: Bill[];
+  onBillUpdate?: (billId: string, field: string, value: number) => Promise<void>;
 }
 
-export function ProjectBills({ bills }: ProjectBillsProps) {
+export function ProjectBills({ bills, onBillUpdate }: ProjectBillsProps) {
   const total = bills.reduce((acc, bill) => acc + bill.amount, 0);
   const outstanding = bills.reduce((acc, bill) => acc + bill.balance, 0);
 
@@ -87,10 +89,26 @@ export function ProjectBills({ bills }: ProjectBillsProps) {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(bill.amount)}
+                      {onBillUpdate ? (
+                        <EditableAmount
+                          value={bill.amount}
+                          onSave={(v) => onBillUpdate(bill.id, "amount", v)}
+                          className="text-sm font-medium justify-end"
+                          isOverridden={bill.manualOverride}
+                        />
+                      ) : (
+                        formatCurrency(bill.amount)
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {bill.balance > 0 ? (
+                      {onBillUpdate ? (
+                        <EditableAmount
+                          value={bill.balance}
+                          onSave={(v) => onBillUpdate(bill.id, "balance", v)}
+                          className={cn("text-sm font-medium justify-end", bill.balance > 0 ? "text-warning" : "text-success")}
+                          isOverridden={bill.manualOverride}
+                        />
+                      ) : bill.balance > 0 ? (
                         <span className="text-warning">
                           {formatCurrency(bill.balance)}
                         </span>
