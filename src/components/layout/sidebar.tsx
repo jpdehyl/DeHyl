@@ -8,7 +8,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const navItems = [
   { title: "Projects", href: "/projects" },
-  { title: "Stories", href: "/stories" },
   { title: "Costs", href: "/expenses" },
   { title: "Invoices", href: "/receivables" },
 ];

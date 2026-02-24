@@ -470,6 +470,7 @@ function calculateNumericConfidence(
 
 /**
  * Finds the best matching project for an invoice with numeric confidence
+ * When multiple projects match with same confidence, returns null to avoid misassignment
  */
 export function findBestMatch(
   invoice: Invoice,
@@ -477,16 +478,44 @@ export function findBestMatch(
   clientMappings: ClientMapping[]
 ): NumericMatchResult | null {
   const activeProjects = projects.filter((p) => p.status === "active");
-  let bestMatch: NumericMatchResult | null = null;
+  const matches: NumericMatchResult[] = [];
 
   for (const project of activeProjects) {
     const result = calculateNumericConfidence(invoice, project, clientMappings);
-    if (result && (!bestMatch || result.confidence > bestMatch.confidence)) {
-      bestMatch = result;
+    if (result && result.confidence >= 80) {
+      matches.push(result);
     }
   }
 
-  return bestMatch;
+  // If no matches found
+  if (matches.length === 0) {
+    return null;
+  }
+
+  // If exactly one match, return it
+  if (matches.length === 1) {
+    return matches[0];
+  }
+
+  // Multiple matches - only return if one has significantly higher confidence
+  // OR if one has a more specific match (project code in memo)
+  matches.sort((a, b) => b.confidence - a.confidence);
+  const best = matches[0];
+  const secondBest = matches[1];
+
+  // If best match has project code match (reason includes "project code"), prefer it
+  if (best.reason.toLowerCase().includes("project code")) {
+    return best;
+  }
+
+  // If there's a significant confidence gap (>10%), return the best
+  if (best.confidence - secondBest.confidence > 10) {
+    return best;
+  }
+
+  // Multiple projects with similar confidence - don't auto-assign
+  // This prevents all invoices from going to the same project
+  return null;
 }
 
 /**

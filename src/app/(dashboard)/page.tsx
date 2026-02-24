@@ -253,18 +253,18 @@ export default async function DashboardPage() {
             </div>
 
             <div className="flex gap-10">
-              <div>
+              <Link href="/receivables" className="block group">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Receivables</p>
-                <p className="font-serif text-2xl font-semibold tabular-nums tracking-tight mt-1">
+                <p className="font-serif text-2xl font-semibold tabular-nums tracking-tight mt-1 group-hover:underline decoration-1 underline-offset-4">
                   {formatCurrency(cashPosition.totalReceivables)}
                 </p>
-              </div>
-              <div>
+              </Link>
+              <Link href="/payables" className="block group">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Payables</p>
-                <p className="font-serif text-2xl font-semibold tabular-nums tracking-tight mt-1">
+                <p className="font-serif text-2xl font-semibold tabular-nums tracking-tight mt-1 group-hover:underline decoration-1 underline-offset-4">
                   {formatCurrency(cashPosition.totalPayables)}
                 </p>
-              </div>
+              </Link>
             </div>
 
             {totalOutstanding > 0 && (
