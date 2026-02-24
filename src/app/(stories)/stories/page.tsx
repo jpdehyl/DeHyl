@@ -11,6 +11,22 @@ export default function StoriesPage() {
   const [projects, setProjects] = useState<ProjectStorySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [isMobile, setIsMobile] = useState(true); // Default to mobile to prevent flash
+
+  // Redirect desktop users to dashboard
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 1024; // lg breakpoint
+      setIsMobile(mobile);
+      if (!mobile) {
+        router.replace("/");
+      }
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, [router]);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -48,7 +64,9 @@ export default function StoriesPage() {
     router.push(`/projects/${projectId}`);
   };
 
-  if (loading) {
+  // Show loading while checking viewport or fetching data
+  // Desktop users get redirected, so they won't see much
+  if (loading || !isMobile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
