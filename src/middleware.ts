@@ -13,6 +13,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhook(.*)", // Webhooks
   "/api/daily-logs/webhook(.*)", // Robbie daily log webhook
   "/api/cron(.*)", // Vercel Cron jobs (auth via CRON_SECRET header)
+  "/api/internal(.*)", // Internal API (auth via x-api-key header)
 ]);
 
 const clerkHandler = clerkMiddleware(async (auth, request) => {
@@ -39,7 +40,8 @@ export default function middleware(request: NextRequest) {
     path.startsWith("/api/webhook") ||
     path.startsWith("/api/cron") ||
     path.startsWith("/api/portal") ||
-    path.startsWith("/api/daily-logs/webhook")
+    path.startsWith("/api/daily-logs/webhook") ||
+    path.startsWith("/api/internal")
   ) {
     return NextResponse.next();
   }
